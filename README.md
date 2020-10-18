@@ -1,2 +1,2 @@
-# lmqtt_cpp_wip
-(work in progress) a lightweight mqtt server written in c++ and based on asio 
+# lmqtt_cpp_wip (Work In Progress)
+A header-only mqtt server written in c++17 and based on asio 
