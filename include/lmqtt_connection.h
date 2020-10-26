@@ -82,19 +82,19 @@ namespace lmqtt {
 		};
 	
 	private:
-		// async method: prime the context ready to read a message header
+		// async method: prime the context ready to read a packet header
 		void read_fixed_header() {
 			asio::async_read(
 				_socket,
 				asio::buffer(
-					&_byte,
+					&_tempPacket._header._controlField,
 					sizeof(uint8_t)
 				),
 				[this](std::error_code ec, size_t length) {
 					if (!ec) {
 
 						// we identify the packet type
-						const reason_code rcode = _tempPacket.create_fixed_header(_byte);
+						const reason_code rcode = _tempPacket.create_fixed_header();
 
 						if (rcode == reason_code::MALFORMED_PACKET
 							|| rcode == reason_code::PROTOCOL_ERROR) {
@@ -103,8 +103,6 @@ namespace lmqtt {
 
 						// read packet length
 						read_packet_length();
-						std::cout << _tempPacket;
-						_socket.close();
 
 					} else {
 						std::cout << "[" << _id << "] Reading Header Failed: " << ec.message() << "\n";
@@ -131,9 +129,46 @@ namespace lmqtt {
 							read_packet_length();
 						}
 						std::cout << "Finished, disconnecting\n";
+						std::cout << "Header length = " << unsigned(_tempPacket._header.size()) << std::endl;
 						std::cout << _tempPacket._header._packetLen << std::endl;
+
+						// resize body length
+						std::cout << "initial size " << _tempPacket._body.size() << std::endl;
+						std::cout << "will resize to " << _tempPacket._header._packetLen << std::endl;
+						_tempPacket._body.resize(_tempPacket._header._packetLen);
+
+						// read the body of the packet (variable header + payload)
+						read_packet_body();
 						_socket.close();
 
+						//_socket.close();
+
+					} else {
+						std::cout << "[" << _id << "] Reading packet length Failed: " << ec.message() << "\n";
+						_socket.close();
+					}
+				}
+			);
+		}
+
+		void read_packet_body() {
+			asio::async_read(
+				_socket,
+				asio::buffer(
+					_tempPacket._body.data(),
+					_tempPacket._body.size()
+				),
+				[this](std::error_code ec, size_t length) {
+					if (!ec) {
+						_socket.close();
+						std::cout << "Total packet length: " << _tempPacket.size() << std::endl;
+						std::cout << "BODY SIZE: " << _tempPacket._body.size() << std::endl;
+
+						_tempPacket.decode_packet_body();
+
+					} else {
+						std::cout << "[" << _id << "] Reading pakcet body Failed: " << ec.message() << "\n";
+						_socket.close();
 					}
 				}
 			);
@@ -152,6 +187,8 @@ namespace lmqtt {
 
 		uint8_t _byte;
 		packet _tempPacket;
+
+
 	};
 
 } // namespace lmqtt

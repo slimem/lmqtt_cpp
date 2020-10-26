@@ -49,6 +49,12 @@ namespace lmqtt {
     struct fixed_header { 
         uint8_t _controlField;
         uint32_t _packetLen; // length without header
+        constexpr size_t size() const noexcept {
+            if (_packetLen >= 0x200000) return 5; // control field + 4 bytes
+            else if (_packetLen >= 0x4000) return 4; // control field + 3 bytes
+            else if (_packetLen >= 0x80) return 3; // control flield + 2 bytes
+            else return 2;
+        }
     };
 
     /*
@@ -60,13 +66,14 @@ namespace lmqtt {
         friend class connection;
 
         fixed_header _header {};
-        std::vector<uint8_t> _varHeader {};
-        std::vector<uint8_t> _payload {};
+        //std::vector<uint8_t> _varHeader {};
+        //std::vector<uint8_t> _pyload {};
+        std::vector<uint8_t> _body;
         packet_type _type = packet_type::UNKNOWN;
         
-        [[nodiscard]] const reason_code create_fixed_header(const uint8_t rbyte) noexcept {
-            uint8_t ptype = rbyte >> 4;
-            uint8_t pflag = rbyte & 0xf;
+        [[nodiscard]] const reason_code create_fixed_header() noexcept {
+            uint8_t ptype = _header._controlField >> 4;
+            uint8_t pflag = _header._controlField & 0xf;
             switch (static_cast<packet_type>(ptype)) {
             case packet_type::RESERVED:
                 {
@@ -113,7 +120,88 @@ namespace lmqtt {
                 }
                 break;
             }
-            _header._controlField = rbyte;
+            return reason_code::SUCCESS;
+        }
+
+        [[nodiscard]] const reason_code decode_packet_body() {
+            // for now, only decode CONNECT packet
+            switch (_type) {
+            case packet_type::CONNECT:
+            {
+                return decode_connect_packet();
+            }
+            }
+            return reason_code::SUCCESS;
+        }
+
+        [[nodiscard]] const reason_code decode_connect_packet() {
+            // byte 0 : length MSB
+            // byte 1 : length LSB
+            const uint8_t protocolNameLen = _body[1] - _body[0];
+            if (protocolNameLen != 0x4) {
+                return reason_code::MALFORMED_PACKET;
+            }
+
+            {
+                // bytes 2 3 4 5 : MQTT protocol
+                const uint8_t protocolOffset = 2;
+                char mqttStr[4];
+                std::memcpy(mqttStr, _body.data() + protocolOffset, 4);
+                // compare non null terminated string
+                if (!std::strncmp(mqttStr, "MQTT", 4)) {
+                    // ~~ [MQTT-3.1.2-2]
+                    return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
+                }
+            }
+
+            // byte 6 : MQTT version
+            if (_body[6] != 0x5) {
+                return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
+            }
+
+            // byte 7 : Connect flags
+            {
+                const uint8_t flags = _body[7];
+                // bit 0 : Reserved : first check the reserved flag is set to 0
+                // ~~ [MQTT-3.1.2-3]
+                if (flags & 0x1) {
+                    return reason_code::MALFORMED_PACKET;
+                }
+
+                // Extract the reset of the flags with bitmasking
+                //TODO: Replace with bitfield in the future
+                // bit 1 : Clean start
+                const uint8_t cleanStart = (flags & 0x2) >> 1;
+                // bit 2 : Will Flag
+                const uint8_t willFlag = (flags & 0x4) >> 2;
+                // bit 3 and 4 : Will QoS
+                uint8_t willQoS = (flags & 0x18) >> 3;
+                // bit 5 : Will retain
+                const uint8_t willRetain = (flags & 0x20) >> 5;
+                // bit 6 : Password Flag
+                const uint8_t passwordFlag = (flags & 0x40) >> 6;
+                // bit 7 : User name flag
+                const uint8_t userNameFlag = (flags & 0x80) >> 7;
+
+                // check if willQos is valid
+                if (willQoS == 0x3) {
+                    return reason_code::MALFORMED_PACKET;
+                }
+                if (!willFlag) {
+                    willQoS = 0;
+                }
+            }
+
+            // byte 8 and 9 : Keep alive MSB and LSB
+            const uint16_t keepAlive = (_body[8] << 8) | _body[9];
+
+            
+            //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
+            //std::chrono::system_clock::time_point timeThen;
+            //msg >> timeThen;
+            //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
+
+
             return reason_code::SUCCESS;
         }
 
@@ -134,6 +222,11 @@ namespace lmqtt {
         friend std::ostream& operator << (std::ostream& os, const packet& packet) {
             os << "PAKCET_TYPE: " << packet.get_type_string() << ", FIXED_HEADER SIZE: " << sizeof(packet._header) << "\n";
             return os;
+        }
+
+    public:
+        size_t size() const noexcept {
+            return _header.size() + _body.size();
         }
 
     protected:
@@ -160,8 +253,33 @@ namespace lmqtt {
             }
             return ""; // keep the compiler happy
         }
+
+        [[nodiscard]] bool has_packet_id() const noexcept {
+            switch (_type) {
+            case packet_type::CONNECT:          return false;
+            case packet_type::CONNACK:          return false;
+            case packet_type::PUBLISH:          return _qos > 0 ? true : false; // true of QoS > 0
+            case packet_type::PUBACK:           return true;
+            case packet_type::PUBREC:           return true;
+            case packet_type::PUBREL:           return true;
+            case packet_type::PUBCOMP:          return true;
+            case packet_type::SUBSCRIBE:        return true;
+            case packet_type::SUBACK:           return true;
+            case packet_type::UNSUBSCRIBE:      return true;
+            case packet_type::UNSUBACK:         return true;
+            case packet_type::PINGREQ:          return false;
+            case packet_type::PINGRESP:         return false;
+            case packet_type::DISCONNECT:       return false;
+            case packet_type::AUTH:             return false;
+            default:                            return false;
+            }
+            return false; // keep the compiler happy
+        }
     private:
         uint8_t _mul = 1; // multiplier for the variable byte integer decoder
+        uint8_t _qos = 0;
     };
+
+
 
 } // namespace lmqtt

@@ -11,6 +11,7 @@ namespace lmqtt {
         MALFORMED_PACKET                        = 0x81,
         PROTOCOL_ERROR                          = 0x82,
         IMPLEMENTATION_SPECIFIC_ERROR           = 0x83,
+        UNSUPPORTED_PROTOCOL_VERSION            = 0x84,
         NOT_AUTHORIZED                          = 0x87,
         PACKET_ID_IN_USE                        = 0x91,
         RECEIVE_MAXIMUM_EXCEEDED                = 0x93,
