@@ -165,6 +165,7 @@ namespace lmqtt {
 						std::cout << "BODY SIZE: " << _tempPacket._body.size() << std::endl;
 
 						_tempPacket.decode_packet_body();
+						_socket.close();
 
 					} else {
 						std::cout << "[" << _id << "] Reading pakcet body Failed: " << ec.message() << "\n";

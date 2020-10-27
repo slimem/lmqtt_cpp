@@ -125,6 +125,7 @@ namespace lmqtt {
 
         [[nodiscard]] const reason_code decode_packet_body() {
             // for now, only decode CONNECT packet
+            std::cout << "decoding packet body\n";
             switch (_type) {
             case packet_type::CONNECT:
             {
@@ -148,7 +149,7 @@ namespace lmqtt {
                 char mqttStr[4];
                 std::memcpy(mqttStr, _body.data() + protocolOffset, 4);
                 // compare non null terminated string
-                if (!std::strncmp(mqttStr, "MQTT", 4)) {
+                if (std::strncmp(mqttStr, "MQTT", 4)) {
                     // ~~ [MQTT-3.1.2-2]
                     return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
                 }
@@ -195,16 +196,54 @@ namespace lmqtt {
             // byte 8 and 9 : Keep alive MSB and LSB
             const uint16_t keepAlive = (_body[8] << 8) | _body[9];
 
-            
+            // check if body size can hold a maximum variable length int (base + 3)
+            if (_body.size() < 13) { // starts at 10 and ends at 13
+                return reason_code::MALFORMED_PACKET;
+            }
+            // now compute the variable
+            uint32_t propertyLength = 0;
+            uint8_t varIntoffset = 0; // length of the variable in the buffer
+            // here, we are pretty comfortable that the buffer size is more than 13
+            decode_variable_int(_body.data() + 10, propertyLength, varIntoffset);
+            std::cout << "Decoded variable size " << propertyLength << std::endl;
+
+            decode_properties(10 + varIntoffset, propertyLength);
+            uint8_t propertyStart = 10 + varIntoffset + 1;
+
             //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
             //std::chrono::system_clock::time_point timeThen;
             //msg >> timeThen;
             //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
 
-
             return reason_code::SUCCESS;
         }
 
+        // TODO: move to a util class
+        // This is an util method (unlike decode_packet_length). It takes a buffer, a reference to a decoded value
+        // and a reference to an offset. The offset will be used to know from where to start the next reading after
+        // decoding the variable.
+        static const reason_code decode_variable_int(uint8_t* buffer, uint32_t& decodedValue, uint8_t& offset) {
+            decodedValue = 0;
+            uint8_t mul = 1;
+
+            for (uint8_t offset = 0; offset < 4; ++offset) {
+                decodedValue += buffer[offset] & 0x7f * mul;
+                if (mul > 0x200000) { // 128 * 128 * 128
+                    //return reason_code::MALFORMED_PACKET;
+                }
+                mul *= 0x80; // prepare for next byte
+                // no continuation bit, break from the loop
+                if (!(buffer[offset] & 0x80)) break;
+            }
+
+            offset++;
+            return reason_code::SUCCESS;
+        }
+
+        // this method is a special case since it it used to decode the packet length, where the asio buffer
+        // reads one byte at a time. So if the "next" argument is true, it means that we should read another
+        // byte and so on. If we read more than 4 (_mul is multiplied 4 times) it means that the packet is
+        // malformed.
         [[nodiscard]] const reason_code decode_packet_length(const uint8_t rbyte, bool& next) noexcept {
             std::cout << "Reading " << std::bitset<8>(rbyte) << "(mul = " << std::hex << _mul << ")";
             _header._packetLen += rbyte & 0x7f * _mul;
@@ -216,6 +255,10 @@ namespace lmqtt {
             
             (rbyte & 0x80) ? next = true : next = false; // continuation bit, read next value
             
+            return reason_code::SUCCESS;
+        }
+
+        const reason_code decode_properties(uint8_t start, uint32_t length) {
             return reason_code::SUCCESS;
         }
 
@@ -278,6 +321,7 @@ namespace lmqtt {
     private:
         uint8_t _mul = 1; // multiplier for the variable byte integer decoder
         uint8_t _qos = 0;
+        uint8_t _varIntBuff[4]; // a buffer to decode variable int
     };
 
 
