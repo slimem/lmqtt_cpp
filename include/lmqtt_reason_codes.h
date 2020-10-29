@@ -6,7 +6,6 @@ namespace lmqtt {
     enum class reason_code : uint8_t {
         SUCCESS                                 = 0x00,
         NO_SUBSCRIPTION_EXISTS                  = 0x11,
-
         UNSPECIFIED_ERROR                       = 0x80,
         MALFORMED_PACKET                        = 0x81,
         PROTOCOL_ERROR                          = 0x82,

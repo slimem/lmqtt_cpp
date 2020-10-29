@@ -1,9 +1,14 @@
 #pragma once
 #include "lmqtt_common.h"
 #include "lmqtt_reason_codes.h"
+//#include "lmqtt_properties.h"
 
 namespace lmqtt {
-
+    /*namespace property {
+        enum class property_type : uint8_t;
+        class utils;
+    }*/
+    // TODO: encolse everything in a packet namespace
     // bitwise or with upcoming byte to identify packet type
     enum class packet_type : uint8_t {
         //           VALUE                Direction            Description 
@@ -208,7 +213,7 @@ namespace lmqtt {
             std::cout << "Decoded variable size " << propertyLength << std::endl;
 
             decode_properties(10 + varIntoffset, propertyLength);
-            uint8_t propertyStart = 10 + varIntoffset + 1;
+            uint8_t propertyStart = 10 + varIntoffset;
 
             //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
             //std::chrono::system_clock::time_point timeThen;
@@ -259,6 +264,30 @@ namespace lmqtt {
         }
 
         const reason_code decode_properties(uint8_t start, uint32_t length) {
+            // first, check if the _body can hold this data
+            if (_body.size() < (start + length)) {
+                return reason_code::MALFORMED_PACKET;
+            }
+            
+            uint8_t* buff = _body.data() + start;
+            
+            // start decoding
+            uint32_t index = 0;
+            while (index != length) {
+                const property::property_type ptype = static_cast<property::property_type>(buff[index]);
+                // check if this packet type supports this property
+                if (!property::utils::validate_packet_property_type(ptype, _type)) {
+                    // check this reason code
+                    return reason_code::MALFORMED_PACKET;
+                }
+
+
+
+
+                break;
+            }
+
+
             return reason_code::SUCCESS;
         }
 
