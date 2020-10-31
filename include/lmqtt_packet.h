@@ -3,6 +3,7 @@
 #include "lmqtt_common.h"
 #include "lmqtt_reason_codes.h"
 #include "lmqtt_types.h"
+#include "lmqtt_properties.h"
 
 namespace lmqtt {
 
@@ -225,6 +226,9 @@ class packet {
         }
         
         uint8_t* buff = _body.data() + start;
+
+        // check if a property type was used twice
+        std::unordered_set<property::property_type> propertySet;
         
         // start decoding
         uint32_t index = 0;
@@ -236,13 +240,26 @@ class packet {
                 return reason_code::MALFORMED_PACKET;
             }
 
+            // check if property already exists
+            if (!propertySet.insert(ptype).second) {
+                return reason_code::PROTOCOL_ERROR;
+            }
 
+            reason_code reasonCode;
+            auto propertyDataPtr = property::get_property_data(ptype, buff+1, length, reasonCode);
 
+            if (reasonCode != reason_code::SUCCESS) {
+                return reasonCode;
+            }
 
+            _propertyTypes.emplace_back(std::move(propertyDataPtr));
+            
+            // how to get real data afterwards
+            /*property::property_data_proxy* data = propertyData.get();
+            property::property_data<std::string>* realData = static_cast<property::property_data<std::string>*>(data);
+            std::cout << realData->get_data() << std::endl;*/
             break;
         }
-
-
         return reason_code::SUCCESS;
     }
 
@@ -306,6 +323,9 @@ private:
     uint8_t _mul = 1; // multiplier for the variable byte integer decoder
     uint8_t _qos = 0;
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
+    std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
+    // maybe use a std::variant in the future
+    //std::unordered_map <property::property_type, std::variant<std::string, uint16_t, uint32_t, std::vector<uint8_t>>> _propertyData;
 };
 
 

@@ -80,6 +80,9 @@ enum class property_type : uint8_t {
     UNKNOWN
 };
 
+// TODO: to be used in the future
+using properties_map = std::unordered_map<property_type, std::variant<uint32_t, std::string>>;
+
 enum class data_type : uint8_t {
     BYTE,
     TWO_BYTES_INT,
@@ -93,7 +96,7 @@ enum class data_type : uint8_t {
 
 class utils {
 public:
-    constexpr const data_type get_property_data_type(const property_type& property) noexcept {
+    static constexpr const data_type get_property_data_type(const property_type& property) noexcept {
         switch (property) {
         case property_type::PAYLOAD_FORMAT_INDICATOR:
         case property_type::REQUEST_PROBLEM_INFORMATION:
