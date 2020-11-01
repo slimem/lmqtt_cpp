@@ -4,6 +4,7 @@
 #include "lmqtt_reason_codes.h"
 #include "lmqtt_types.h"
 #include "lmqtt_properties.h"
+#include "lmqtt_utils.h"
 
 namespace lmqtt {
 
@@ -163,41 +164,26 @@ class packet {
         }
         // now compute the variable
         uint32_t propertyLength = 0;
-        uint8_t varIntoffset = 0; // length of the variable in the buffer
+        uint8_t varSize = 0; // length of the variable in the buffer
         // here, we are pretty comfortable that the buffer size is more than 13
-        decode_variable_int(_body.data() + 10, propertyLength, varIntoffset);
+        if (utils::decode_variable_int(_body.data() + 10, propertyLength, varSize) != return_code::OK) {
+            return reason_code::MALFORMED_PACKET;
+        }
         std::cout << "Decoded variable size " << propertyLength << std::endl;
 
-        decode_properties(10 + varIntoffset, propertyLength);
-        uint8_t propertyStart = 10 + varIntoffset;
+        // decode at position 10 + variable int size + 1
+        reason_code rCode;
+        rCode = decode_properties(10 + varSize + 1, propertyLength);
+        if (rCode != reason_code::SUCCESS) {
+            return rCode;
+        }
+        uint8_t propertyStart = 10 + varSize + 1;
 
         //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
         //std::chrono::system_clock::time_point timeThen;
         //msg >> timeThen;
         //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
 
-        return reason_code::SUCCESS;
-    }
-
-    // TODO: move to a util class
-    // This is an util method (unlike decode_packet_length). It takes a buffer, a reference to a decoded value
-    // and a reference to an offset. The offset will be used to know from where to start the next reading after
-    // decoding the variable.
-    static const reason_code decode_variable_int(uint8_t* buffer, uint32_t& decodedValue, uint8_t& offset) {
-        decodedValue = 0;
-        uint8_t mul = 1;
-
-        for (uint8_t offset = 0; offset < 4; ++offset) {
-            decodedValue += buffer[offset] & 0x7f * mul;
-            if (mul > 0x200000) { // 128 * 128 * 128
-                //return reason_code::MALFORMED_PACKET;
-            }
-            mul *= 0x80; // prepare for next byte
-            // no continuation bit, break from the loop
-            if (!(buffer[offset] & 0x80)) break;
-        }
-
-        offset++;
         return reason_code::SUCCESS;
     }
 
@@ -219,52 +205,82 @@ class packet {
         return reason_code::SUCCESS;
     }
 
-    const reason_code decode_properties(uint8_t start, uint32_t length) {
+    const reason_code decode_properties(uint8_t start, uint32_t size) {
         // first, check if the _body can hold this data
-        if (_body.size() < (start + length)) {
+        if (_body.size() < (start + size)) {
             return reason_code::MALFORMED_PACKET;
         }
         
+        // We can use a full c++ implementation here with iterators
+        // but we preferred a C-friendly since we are treating a uint8_t
+        // buffer
+
         uint8_t* buff = _body.data() + start;
+        const uint8_t* buffEnd = _body.data() + start + size;
 
         // check if a property type was used twice
         std::unordered_set<property::property_type> propertySet;
         
         // start decoding
-        uint32_t index = 0;
-        while (index != length) {
-            const property::property_type ptype = static_cast<property::property_type>(buff[index]);
+        while (buff != buffEnd) {
+            
+            // We post increment the buffer pointer so we prepare the data reading position right after
+            // deducing the property type. Also, this will avoid looping indefinetly since the pointer
+            // will increment and leads to an invalid property which itself will early-exit due to 
+            // a malformed packet  
+            const property::property_type ptype = static_cast<property::property_type>(*(buff++));
+            
             // check if this packet type supports this property
-            if (!property::utils::validate_packet_property_type(ptype, _type)) {
+            if (!property::types_utils::validate_packet_property_type(ptype, _type)) {
                 // check this reason code
                 return reason_code::MALFORMED_PACKET;
             }
 
-            // check if property already exists
-            if (!propertySet.insert(ptype).second) {
+            // only check if property already exists for unique property types
+            if (property::types_utils::is_property_unique(ptype) && !propertySet.insert(ptype).second) {
                 return reason_code::PROTOCOL_ERROR;
             }
 
-            reason_code reasonCode;
-            auto propertyDataPtr = property::get_property_data(ptype, buff+1, length, reasonCode);
+            // In the following function, the property data is copied from the buffer to a property_data
+            // object, which will also be stored in a vector of unique pointers
+            uint32_t remainingSize = buffEnd - buff;
+            // if remaining size is zero or negative
+            if (!remainingSize || (remainingSize > size)) {
+                return reason_code::MALFORMED_PACKET;
+            }
+            reason_code rCode;
+            uint32_t propertySize = 0;
+            auto propertyDataPtr = property::get_property_data(
+                ptype,  // property type: will be used to identify what type of data to extract
+                buff,  // the buffer pointer to extract the property data from
+                remainingSize,
+                propertySize,
+                rCode
+            );
+            
+            if (rCode != reason_code::SUCCESS) {
+                return rCode;
+            }
 
-            if (reasonCode != reason_code::SUCCESS) {
-                return reasonCode;
+            // TODO: (only for debugging) Remove this or replace with a trace
+            if (ptype == property::property_type::USER_PROPERTY) {
+                std::cout << "Displaying property content: \n";
+                property::property_data_proxy* data = propertyDataPtr.get();
+                property::property_data<std::pair<std::string,std::string>>* realData = 
+                    static_cast<property::property_data<std::pair<std::string, std::string>>*>(data);
+                std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
             }
 
             _propertyTypes.emplace_back(std::move(propertyDataPtr));
-            
-            // how to get real data afterwards
-            /*property::property_data_proxy* data = propertyData.get();
-            property::property_data<std::string>* realData = static_cast<property::property_data<std::string>*>(data);
-            std::cout << realData->get_data() << std::endl;*/
-            break;
+
+            // prepare the buffer pointer for the next property position
+            buff += propertySize;
         }
         return reason_code::SUCCESS;
     }
 
     friend std::ostream& operator << (std::ostream& os, const packet& packet) {
-        os << "PAKCET_TYPE: " << packet.get_type_string() << ", FIXED_HEADER SIZE: " << sizeof(packet._header) << "\n";
+        os << "PAKCET_TYPE: " << to_string(packet._type) << ", FIXED_HEADER SIZE: " << sizeof(packet._header) << "\n";
         return os;
     }
 
@@ -327,7 +343,5 @@ private:
     // maybe use a std::variant in the future
     //std::unordered_map <property::property_type, std::variant<std::string, uint16_t, uint32_t, std::vector<uint8_t>>> _propertyData;
 };
-
-
 
 } // namespace lmqtt

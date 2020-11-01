@@ -27,6 +27,30 @@ enum class packet_type : uint8_t {
     UNKNOWN,
 };
 
+const std::string_view to_string(packet_type type) noexcept {
+    switch (type) {
+    case packet_type::RESERVED:         return "RESERVED";
+    case packet_type::CONNECT:          return "CONNECT";
+    case packet_type::CONNACK:          return "CONNACK";
+    case packet_type::PUBLISH:          return "PUBLISH";
+    case packet_type::PUBACK:           return "PUBACK";
+    case packet_type::PUBREC:           return "PUBREC";
+    case packet_type::PUBREL:           return "PUBREL";
+    case packet_type::PUBCOMP:          return "PUBCOMP";
+    case packet_type::SUBSCRIBE:        return "SUBSCRIBE";
+    case packet_type::SUBACK:           return "SUBACK";
+    case packet_type::UNSUBSCRIBE:      return "UNSUBSCRIBE";
+    case packet_type::UNSUBACK:         return "UNSUBACK";
+    case packet_type::PINGREQ:          return "PINGREQ";
+    case packet_type::PINGRESP:         return "PINGRESP";
+    case packet_type::DISCONNECT:       return "DISCONNECT";
+    case packet_type::AUTH:             return "AUTH";
+    case packet_type::UNKNOWN:          return "UNKNOWN";
+    default:                            return "NONE";
+    }
+    return ""; // keep the compiler happy
+}
+
 enum class packet_flag : uint8_t {
     //           VALUE                 FLAG          
     RESERVED    = 0x0,        //   ***Reserved***
@@ -94,9 +118,48 @@ enum class data_type : uint8_t {
     UNKNOWN
 };
 
-class utils {
+class types_utils {
 public:
-    static constexpr const data_type get_property_data_type(const property_type& property) noexcept {
+
+    static constexpr const bool is_property_unique(property_type property) noexcept {
+        switch (property) {
+        case property_type::PAYLOAD_FORMAT_INDICATOR:
+        case property_type::MESSAGE_EXPIRY_INTERVAL:
+        case property_type::CONTENT_TYPE:
+        case property_type::RESPONSE_TOPIC:
+        case property_type::CORRELATION_DATA:
+        case property_type::SUBSCRIPTION_ID:
+        case property_type::SESSION_EXPIRY_INTERVAL:
+        case property_type::ASSIGNED_CLIENT_ID:
+        case property_type::SERVER_KEEP_ALIVE:
+        case property_type::AUTHENTICATION_METHOD:
+        case property_type::AUTHENTICATION_DATA:
+        case property_type::REQUEST_PROBLEM_INFORMATION:
+        case property_type::WILL_DELAY_INTERVAL:
+        case property_type::REQUEST_RESPONSE_INFORMATION:
+        case property_type::RESPONSE_INFORMATION:
+        case property_type::SERVER_REFERENCE:
+        case property_type::REASON_STRING:
+        case property_type::RECEIVE_MAXIMUM:
+        case property_type::TOPIC_ALIAS_MAXIMUM:
+        case property_type::TOPIC_ALIAS:
+        case property_type::MAXIMUM_QOS:
+        case property_type::RETAIN_AVAILABLE:
+            return true;
+        case property_type::USER_PROPERTY:
+            return false;
+        case property_type::MAXIMUM_PACKET_SIZE:
+        case property_type::WILDCARD_SUBSCRIPTION_AVAILABLE:
+        case property_type::SUBSCRIPTION_ID_AVAILABLE:
+        case property_type::SHARED_SUBSCRIPTION_AVAILABLE:
+        case property_type::UNKNOWN:
+            return true;
+        default:
+            return true;
+        }
+    }
+
+    static constexpr const data_type get_property_data_type(property_type property) noexcept {
         switch (property) {
         case property_type::PAYLOAD_FORMAT_INDICATOR:
         case property_type::REQUEST_PROBLEM_INFORMATION:

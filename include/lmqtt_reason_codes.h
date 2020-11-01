@@ -21,4 +21,10 @@ enum class reason_code : uint8_t {
     UNSUPPORTED_SUBSCRIPTION_IDENTIFIERS    = 0xA1,
     UNSUPPORTED_WILDCARD_SUBSCRIPTIONS      = 0xA2,
 };
+
+enum class [[nodiscard]] return_code : uint8_t {
+    OK      = 0,
+    FAIL    = 1 
+};
+
 } // namespace lmqtt

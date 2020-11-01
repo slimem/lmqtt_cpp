@@ -4,6 +4,9 @@
 #include <thread>
 #include <mutex>
 #include <deque>
+#include <variant>
+#include <unordered_map>
+#include <unordered_set>
 
 //for debugging
 #include <bitset>

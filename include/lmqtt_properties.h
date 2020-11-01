@@ -2,6 +2,7 @@
 
 #include "lmqtt_common.h"
 #include "lmqtt_types.h"
+#include "lmqtt_utils.h"
 
 namespace lmqtt {
 
@@ -41,50 +42,175 @@ private:
 };
 
 std::unique_ptr<property_data_proxy>
-get_property_data(property_type ptype, uint8_t* buff, uint32_t buffLength, reason_code& reasonCode) noexcept {
-    reasonCode = reason_code::SUCCESS;
-    /*std::unique_ptr<property::property_data_proxy> propertyData(
-    new property::property_data<std::string>(
-        property::property_type::CONTENT_TYPE, potato1)
-);*/
+get_property_data(
+    property_type ptype,
+    uint8_t* buff,
+    uint32_t remainingSize,
+    uint32_t& propertySize,
+    reason_code& rCode
+) noexcept {
 
-    switch (utils::get_property_data_type(ptype)) {
+    rCode = reason_code::SUCCESS;
+
+    switch (types_utils::get_property_data_type(ptype)) {
     case data_type::BYTE:
-        return std::unique_ptr<property_data_proxy>{};
+    {
+        // if no remaining size, we early exit
+        if (!remainingSize) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+        uint8_t data = buff[0];
+        std::unique_ptr<property_data_proxy> propertyData(
+            new property_data<uint8_t>(ptype, data)
+        );
+        propertySize = 1;
+        return propertyData;
+    }
     case data_type::TWO_BYTES_INT:
     {
+        if (remainingSize < 2) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
         uint16_t data = (buff[0] << 0x8) | buff[1];
         std::unique_ptr<property_data_proxy> propertyData(
             new property_data<uint16_t>(ptype, data)
         );
+        propertySize = 2;
         return propertyData;
     }
     case data_type::FOUR_BYTES_INT:
     {
-        uint32_t data = (buff[0] << 0x18) |
+        if (remainingSize < 4) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+        uint32_t data = 
+            (buff[0] << 0x18) |
             (buff[1] << 0x10) |
             (buff[2] << 0x8) |
             buff[3];
+        propertySize = 4;
         std::unique_ptr<property_data_proxy> propertyData(
             new property_data<uint32_t>(ptype, data)
         );
         return propertyData;
     }
     case data_type::VARIABLE_BYTE_INT:
-        return std::unique_ptr<property_data_proxy>{};
-    case data_type::UTF8_STRING:
-        return std::unique_ptr<property_data_proxy>{};
-    case data_type::UTF8_STRING_PAIR:
-        return std::unique_ptr<property_data_proxy>{};
-    case data_type::BINARY:
-        return std::unique_ptr<property_data_proxy>{};
-    case data_type::UNKNOWN:
-        return std::unique_ptr<property_data_proxy>{};
-    default:
+    {
+        propertySize = 0;
+        std::cout << "NOT SUPPORTED YET\n";
         return std::unique_ptr<property_data_proxy>{};
     }
-    return std::unique_ptr<property_data_proxy>{};
-    
+    case data_type::UTF8_STRING:
+    {
+        std::string str;
+        propertySize = 0;
+        uint32_t offset = 0;
+
+        if (remainingSize < 2U) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+        uint16_t strLen = (buff[0] << 0x8) | buff[1];
+
+        if (remainingSize < (2U + strLen)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        if (utils::decode_utf8_str(buff, str, offset) != return_code::OK) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        std::unique_ptr<property_data_proxy> propertyData(
+            new property_data<std::string>(ptype, str)
+        );
+        return propertyData;
+    }
+    case data_type::UTF8_STRING_PAIR:
+    {
+        std::pair<std::string, std::string> strPair;
+        propertySize = 0;
+        uint32_t offset = 0;
+        
+        // ******** BOUNDARY CHECK FOR FIRST STRING ***** //
+        // first, check for str size
+        if (remainingSize < 2) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+        uint16_t str1Len = (buff[0] << 0x8) | buff[1];
+
+        // if the remaining size is less than the str length + 2, the extracted
+        // string will be out-of-range
+        if (remainingSize < (2U + str1Len)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        if (utils::decode_utf8_str(buff, strPair.first, offset) != return_code::OK) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        // ******** BOUNDARY CHECK FOR SECOND STRING ***** //
+        // first, check for str size
+        if (remainingSize < (offset + 2U)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        uint16_t str2Len = (buff[offset] << 0x8) | buff[offset + 1];
+        
+        // if the remaining size is less than the two string lenght + 4, the extracted
+        // string will be out-of-range
+        if (remainingSize < (4U + str1Len + str2Len)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        if (utils::decode_utf8_str(buff + offset, strPair.second, offset) != return_code::OK) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        // the next property will be parsed from the new position
+        propertySize = offset;
+        std::unique_ptr<property_data_proxy> propertyData(
+            new property_data<std::pair<std::string, std::string>>(ptype, strPair)
+        );
+        return propertyData;
+    }
+    case data_type::BINARY:
+    {
+        if (remainingSize < 2) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        propertySize = 0;
+        uint16_t dataLen = (buff[0] << 0x8) | buff[1];
+
+        if (remainingSize < (2U + dataLen)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<property_data_proxy>{};
+        }
+
+        std::vector<uint8_t> data;
+        data.assign(buff + 2, buff + 2 + dataLen);
+        std::unique_ptr<property_data_proxy> propertyData(
+            new property_data<std::vector<uint8_t>>(ptype, data)
+        );
+        propertySize = dataLen + 2;
+        return propertyData;
+    }
+    default:
+        propertySize = 0;
+        return std::unique_ptr<property_data_proxy>{};
+    }    
 }
 
 } //namespace property
