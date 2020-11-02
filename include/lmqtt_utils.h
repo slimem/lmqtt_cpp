@@ -33,7 +33,7 @@ public:
     }
 
     static const return_code decode_utf8_str(uint8_t* buffer,
-        std::string& decodedString,
+        std::string_view& decodedString,
         uint32_t& offset
     ) noexcept {
         //decodedString.clear();
@@ -50,7 +50,7 @@ public:
             }
         }
 
-        decodedString = std::string((char*)(buffer + 2), strLen);
+        decodedString = std::string_view((char*)(buffer + 2), strLen);
         offset += 2 + strLen;
 
         return return_code::OK;

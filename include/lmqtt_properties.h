@@ -41,6 +41,10 @@ private:
     T _data;
 };
 
+// Small data (data smaller than uint32_t is copied, big data (buffers, strings)
+// are indexed in the buffer directly. For strings, string_view does only that.
+// we will implement the same concept for raw data (something named data_view)
+// TODO
 std::unique_ptr<property_data_proxy>
 get_property_data(
     property_type ptype,
@@ -105,7 +109,7 @@ get_property_data(
     }
     case data_type::UTF8_STRING:
     {
-        std::string str;
+        std::string_view str;
         propertySize = 0;
         uint32_t offset = 0;
 
@@ -126,13 +130,13 @@ get_property_data(
         }
 
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<std::string>(ptype, str)
+            new property_data<std::string_view>(ptype, str)
         );
         return propertyData;
     }
     case data_type::UTF8_STRING_PAIR:
     {
-        std::pair<std::string, std::string> strPair;
+        std::pair<std::string_view, std::string_view> strPair;
         propertySize = 0;
         uint32_t offset = 0;
         
@@ -180,12 +184,14 @@ get_property_data(
         // the next property will be parsed from the new position
         propertySize = offset;
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<std::pair<std::string, std::string>>(ptype, strPair)
+            new property_data<std::pair<std::string_view, std::string_view>>(ptype, strPair)
         );
         return propertyData;
     }
     case data_type::BINARY:
     {
+        // binary data should be accessed as a view too, to avoid duplicating data
+        // into memory
         if (remainingSize < 2) {
             rCode = reason_code::MALFORMED_PACKET;
             return std::unique_ptr<property_data_proxy>{};

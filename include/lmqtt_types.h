@@ -303,4 +303,22 @@ public:
 };
 
 } // namespace property
+
+
+
+namespace payload {
+
+// the enum values can change and are not important for now
+enum class payload_type : uint8_t {
+    CLIENT_ID                               = 0x01,
+    WILL_PROPERTIES                         = 0x02,
+    WILL_TOPIC                              = 0x03,
+    WILL_PAYLOAD                            = 0x04,
+    USER_NAME                               = 0x05,
+    PASSWORD                                = 0x06,
+    UNKNOWN
+};
+
+} // namespace payload
+
 } // namespace lmqtt

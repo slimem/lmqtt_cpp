@@ -4,6 +4,7 @@
 #include "lmqtt_reason_codes.h"
 #include "lmqtt_types.h"
 #include "lmqtt_properties.h"
+#include "lmqtt_payload.h"
 #include "lmqtt_utils.h"
 
 namespace lmqtt {
@@ -90,14 +91,18 @@ class packet {
         std::cout << "decoding packet body\n";
         switch (_type) {
         case packet_type::CONNECT:
-        {
-            return decode_connect_packet();
-        }
+            return decode_connect_packet_body();
         }
         return reason_code::SUCCESS;
     }
 
-    [[nodiscard]] const reason_code decode_connect_packet() {
+    [[nodiscard]] const reason_code decode_connect_packet_body() {
+        // TODO: use a uint8_t* and advance it until we reach uint8_t* + body().size()
+        // This way, we can avoid indexed access alltogether.
+        // For now, we use an indexed access since we are only decoding CONNECT packet
+        // for a proof of concept. Then in the future, to support all packet types, we
+        // must decode them in a more generic manner.
+
         // byte 0 : length MSB
         // byte 1 : length LSB
         const uint8_t protocolNameLen = _body[1] - _body[0];
@@ -108,10 +113,15 @@ class packet {
         {
             // bytes 2 3 4 5 : MQTT protocol
             const uint8_t protocolOffset = 2;
-            char mqttStr[4];
-            std::memcpy(mqttStr, _body.data() + protocolOffset, 4);
+            //char mqttStr[4];
+
+            // TODO: replace with a string_view
+            //std::memcpy(mqttStr, _body.data() + protocolOffset, 4);
+            std::string_view mqttStr((char*)_body.data() + protocolOffset, 4);
+
             // compare non null terminated string
-            if (std::strncmp(mqttStr, "MQTT", 4)) {
+            //if (std::strncmp(mqttStr, "MQTT", 4)) {
+            if (mqttStr.compare("MQTT")) {
                 // ~~ [MQTT-3.1.2-2]
                 return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
             }
@@ -122,6 +132,8 @@ class packet {
             return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
         }
 
+        // Connect flags are only applicable to CONNECT packets. So the idea here is to
+        // treat each packet as a connect packet then improve further and further
         // byte 7 : Connect flags
         {
             const uint8_t flags = _body[7];
@@ -177,7 +189,16 @@ class packet {
         if (rCode != reason_code::SUCCESS) {
             return rCode;
         }
+        // TODO: this is ugly and should be removed after testing (use uint8_t* instead)
         uint8_t propertyStart = 10 + varSize + 1;
+
+        // decode payload
+        rCode = decode_payload(10 + varSize + 1 + propertyLength);
+        if (rCode != reason_code::SUCCESS) {
+            return rCode;
+        }
+
+
 
         //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
         //std::chrono::system_clock::time_point timeThen;
@@ -222,7 +243,7 @@ class packet {
         std::unordered_set<property::property_type> propertySet;
         
         // start decoding
-        while (buff != buffEnd) {
+        while (buff != buffEnd) { // != or <, which is better?
             
             // We post increment the buffer pointer so we prepare the data reading position right after
             // deducing the property type. Also, this will avoid looping indefinetly since the pointer
@@ -244,10 +265,12 @@ class packet {
             // In the following function, the property data is copied from the buffer to a property_data
             // object, which will also be stored in a vector of unique pointers
             uint32_t remainingSize = buffEnd - buff;
+
             // if remaining size is zero or negative
             if (!remainingSize || (remainingSize > size)) {
                 return reason_code::MALFORMED_PACKET;
             }
+
             reason_code rCode;
             uint32_t propertySize = 0;
             auto propertyDataPtr = property::get_property_data(
@@ -266,8 +289,8 @@ class packet {
             if (ptype == property::property_type::USER_PROPERTY) {
                 std::cout << "Displaying property content: \n";
                 property::property_data_proxy* data = propertyDataPtr.get();
-                property::property_data<std::pair<std::string,std::string>>* realData = 
-                    static_cast<property::property_data<std::pair<std::string, std::string>>*>(data);
+                property::property_data<std::pair<std::string_view,std::string_view>>* realData = 
+                    static_cast<property::property_data<std::pair<std::string_view, std::string_view>>*>(data);
                 std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
             }
 
@@ -276,6 +299,46 @@ class packet {
             // prepare the buffer pointer for the next property position
             buff += propertySize;
         }
+        return reason_code::SUCCESS;
+    }
+
+    // TODO: Change to uint8_t*
+    const reason_code decode_payload(uint8_t start) {
+        // find a way to check for overflow
+        if (_body.size() < start) {
+            return reason_code::MALFORMED_PACKET;
+        }
+
+        // since the payload is the last part of the body, it is easy to check
+        // for out-of-range read
+        // TODO: Only temporary, for proof of concept
+        uint32_t payloadSize = _body.size() - start;
+        uint8_t* buff = _body.data() + start;
+        const uint8_t* buffEnd = buff + payloadSize;
+
+        // temporary, for testing purposes
+        const payload::payload_type ptype = payload::payload_type::CLIENT_ID;
+
+        uint32_t remainingSize = buffEnd - buff;
+        reason_code rCode;
+        uint32_t readPayloadSize = 0;
+        auto payloadDataPtr = payload::get_payload(
+            ptype,  // payload type: will be used to identify what type of data to extract
+            buff,  // the buffer pointer to extract the property data from
+            remainingSize,
+            readPayloadSize,
+            rCode
+        );
+
+        // TODO: (only for debugging) Remove this or replace with a trace
+        if (ptype == payload::payload_type::CLIENT_ID) {
+            std::cout << "Displaying payload content: \n";
+            payload::payload_proxy* data = payloadDataPtr.get();
+            payload::payload<std::string_view>* realData =
+                static_cast<payload::payload<std::string_view>*>(data);
+            std::cout << " CLIENT_ID : " << realData->get_data() << std::endl;
+        }
+
         return reason_code::SUCCESS;
     }
 
