@@ -55,6 +55,12 @@ public:
 
         return return_code::OK;
     }
+
+    // a more readable method to convert enums
+    template <typename T>
+    static constexpr typename std::underlying_type<T>::type to_underlying(T e) {
+        return static_cast<typename std::underlying_type<T>::type>(e);
+    }
 };
 
 } // namespace lmqtt

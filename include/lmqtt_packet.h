@@ -147,23 +147,43 @@ class packet {
             //TODO: Replace with bitfield in the future
             // bit 1 : Clean start
             const uint8_t cleanStart = (flags & 0x2) >> 1;
-            // bit 2 : Will Flag
-            const uint8_t willFlag = (flags & 0x4) >> 2;
-            // bit 3 and 4 : Will QoS
-            uint8_t willQoS = (flags & 0x18) >> 3;
-            // bit 5 : Will retain
-            const uint8_t willRetain = (flags & 0x20) >> 5;
+
+            {
+                // bit 2 : Will Flag
+                const uint8_t willFlag = (flags & 0x4) >> 2;
+                
+                uint8_t willQoS = 0;
+                
+                if (willFlag) {
+                    _payloadFlags[utils::to_underlying(payload::payload_type::WILL_PROPERTIES)] = payload::payload_type::WILL_PROPERTIES;
+                    _payloadFlags[utils::to_underlying(payload::payload_type::WILL_TOPIC)]      = payload::payload_type::WILL_TOPIC;
+                    _payloadFlags[utils::to_underlying(payload::payload_type::WILL_PAYLOAD)]    = payload::payload_type::WILL_PAYLOAD;
+                    
+                    // bit 3 and 4 : Will QoS
+                    willQoS = (flags & 0x18) >> 3;
+                    
+                    // check if willQos is valid
+                    if (willQoS == 0x3) {
+                        return reason_code::MALFORMED_PACKET;
+                    }
+                } else {
+                    willQoS = 0;
+                }
+
+                // TODO: Use in the future
+                // bit 5 : Will retain
+                const uint8_t willRetain = (flags & 0x20) >> 5;
+            }
+
             // bit 6 : Password Flag
             const uint8_t passwordFlag = (flags & 0x40) >> 6;
+            if (passwordFlag) {
+                _payloadFlags[utils::to_underlying(payload::payload_type::PASSWORD)] = payload::payload_type::PASSWORD;
+            }
             // bit 7 : User name flag
             const uint8_t userNameFlag = (flags & 0x80) >> 7;
-
-            // check if willQos is valid
-            if (willQoS == 0x3) {
-                return reason_code::MALFORMED_PACKET;
-            }
-            if (!willFlag) {
-                willQoS = 0;
+            if (userNameFlag) {
+                _payloadFlags[utils::to_underlying(payload::payload_type::USER_NAME)] = payload::payload_type::USER_NAME;
             }
         }
 
@@ -403,6 +423,14 @@ private:
     uint8_t _qos = 0;
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
     std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
+    std::array<payload::payload_type, 6> _payloadFlags{
+        payload::payload_type::CLIENT_ID,
+        payload::payload_type::WILL_PROPERTIES,
+        payload::payload_type::WILL_TOPIC,
+        payload::payload_type::WILL_PAYLOAD,
+        payload::payload_type::USER_NAME,
+        payload::payload_type::PASSWORD
+    };
     // maybe use a std::variant in the future
     //std::unordered_map <property::property_type, std::variant<std::string, uint16_t, uint32_t, std::vector<uint8_t>>> _propertyData;
 };
