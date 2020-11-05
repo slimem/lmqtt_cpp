@@ -71,6 +71,18 @@ enum class packet_flag : uint8_t {
     AUTH        = 0x0,        //   ***Reserved***
 };
 
+enum class data_type : uint8_t {
+    BYTE,
+    TWO_BYTES_INT,
+    FOUR_BYTES_INT,
+    VARIABLE_BYTE_INT,
+    UTF8_STRING,
+    UTF8_STRING_ALPHA_NUM,
+    UTF8_STRING_PAIR,
+    BINARY,
+    UNKNOWN
+};
+
 namespace property {
 
 enum class property_type : uint8_t {
@@ -107,16 +119,6 @@ enum class property_type : uint8_t {
 // TODO: to be used in the future
 using properties_map = std::unordered_map<property_type, std::variant<uint32_t, std::string>>;
 
-enum class data_type : uint8_t {
-    BYTE,
-    TWO_BYTES_INT,
-    FOUR_BYTES_INT,
-    VARIABLE_BYTE_INT,
-    UTF8_STRING,
-    UTF8_STRING_PAIR,
-    BINARY,
-    UNKNOWN
-};
 
 class types_utils {
 public:
@@ -309,6 +311,8 @@ public:
 namespace payload {
 
 // the enum values can change and are not important for now
+// they start by 0 because they are used as an index for std::array
+// in lmqtt_packet class
 enum class payload_type : uint8_t {
     CLIENT_ID                               = 0x00,
     WILL_PROPERTIES                         = 0x01,
@@ -317,6 +321,36 @@ enum class payload_type : uint8_t {
     USER_NAME                               = 0x04,
     PASSWORD                                = 0x05,
     UNKNOWN                                 = 0x06
+};
+
+enum class will_properties_payload_type : uint8_t {
+    WILL_DELAY_INTERVAL         = 0x18,
+    PAYLOAD_FORMAT_INDICATOR    = 0x01,
+    MESSAGE_EXPIRY_INTERVAL     = 0x02,
+    CONTENT_TYPE                = 0x03,
+    REASON_TOPIC                = 0x08,
+    USER_PROPERTY               = 0x26
+};
+
+class payload_utils {
+public:
+
+    static constexpr const data_type get_payload_data_type(payload_type payload) noexcept {
+        switch (payload) {
+        case payload_type::CLIENT_ID:
+            return data_type::UTF8_STRING_ALPHA_NUM;
+        case payload_type::WILL_PROPERTIES:
+            return data_type::UNKNOWN; // handled
+        case payload_type::WILL_TOPIC:
+        case payload_type::USER_NAME:
+            return data_type::UTF8_STRING;
+        case payload_type::PASSWORD:
+        case payload_type::WILL_PAYLOAD:
+            return data_type::BINARY;
+        default:
+            return data_type::UNKNOWN;
+        }
+    }
 };
 
 } // namespace payload

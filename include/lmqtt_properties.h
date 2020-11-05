@@ -103,14 +103,14 @@ get_property_data(
     }
     case data_type::VARIABLE_BYTE_INT:
     {
-        propertySize = 0;
+        propertySize = 4;
         std::cout << "NOT SUPPORTED YET\n";
+        rCode = reason_code::MALFORMED_PACKET;
         return std::unique_ptr<property_data_proxy>{};
     }
     case data_type::UTF8_STRING:
     {
         std::string_view str;
-        propertySize = 0;
         uint32_t offset = 0;
 
         if (remainingSize < 2U) {
@@ -128,7 +128,7 @@ get_property_data(
             rCode = reason_code::MALFORMED_PACKET;
             return std::unique_ptr<property_data_proxy>{};
         }
-
+        propertySize = offset;
         std::unique_ptr<property_data_proxy> propertyData(
             new property_data<std::string_view>(ptype, str)
         );
@@ -137,7 +137,6 @@ get_property_data(
     case data_type::UTF8_STRING_PAIR:
     {
         std::pair<std::string_view, std::string_view> strPair;
-        propertySize = 0;
         uint32_t offset = 0;
         
         // ******** BOUNDARY CHECK FOR FIRST STRING ***** //
@@ -197,7 +196,6 @@ get_property_data(
             return std::unique_ptr<property_data_proxy>{};
         }
 
-        propertySize = 0;
         uint16_t dataLen = (buff[0] << 0x8) | buff[1];
 
         if (remainingSize < (2U + dataLen)) {
@@ -215,6 +213,7 @@ get_property_data(
     }
     default:
         propertySize = 0;
+        rCode = reason_code::MALFORMED_PACKET;
         return std::unique_ptr<property_data_proxy>{};
     }    
 }

@@ -14,12 +14,16 @@ public:
     static const return_code decode_variable_int(
         uint8_t* buffer,
         uint32_t& decodedValue,
-        uint8_t& offset
+        uint8_t& offset,
+        uint32_t buffSize
     ) noexcept {
         decodedValue = 0;
         uint8_t mul = 1;
 
         for (offset = 0; offset < 4; ++offset) {
+            if (offset >= buffSize) {
+                return return_code::FAIL;
+            }
             decodedValue += buffer[offset] & 0x7f * mul;
             if (mul > 0x200000) { // 128 * 128 * 128
                 return return_code::FAIL;
@@ -34,7 +38,8 @@ public:
 
     static const return_code decode_utf8_str(uint8_t* buffer,
         std::string_view& decodedString,
-        uint32_t& offset
+        uint32_t& offset,
+        bool isAlphaNum = false
     ) noexcept {
         //decodedString.clear();
 
@@ -47,6 +52,11 @@ public:
         for (uint32_t i = 2; i < strLen + 2U; ++i) {
             if (buffer[i] == 0) {
                 return return_code::FAIL;
+            }
+            if (isAlphaNum) {
+                if (!isalnum(buffer[i])) {
+                    return return_code::FAIL;
+                }
             }
         }
 

@@ -56,31 +56,68 @@ get_payload(
 
     rCode = reason_code::SUCCESS;
 
-    std::string_view str;
-    payloadSize = 0;
-    uint32_t offset = 0;
+    switch (payload_utils::get_payload_data_type(ptype)) {
+    case data_type::UTF8_STRING:
+    case data_type::UTF8_STRING_ALPHA_NUM:
+    {
+        std::string_view str;
+        payloadSize = 0;
+        uint32_t offset = 0;
 
-    if (remainingSize < 2U) {
+        if (remainingSize < 2U) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<payload_proxy>{};
+        }
+        uint16_t strLen = (buff[0] << 0x8) | buff[1];
+
+        if (remainingSize < (2U + strLen)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<payload_proxy>{};
+        }
+
+        bool isAlphaNumStr = payload_utils::get_payload_data_type(ptype) == data_type::UTF8_STRING_ALPHA_NUM;
+
+        if (utils::decode_utf8_str(buff, str, offset, isAlphaNumStr) != return_code::OK) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<payload_proxy>{};
+        }
+
+        payloadSize = offset;
+        std::unique_ptr<payload_proxy> payloadData(
+            new payload<std::string_view>(ptype, str)
+        );
+        return payloadData;
+    }
+    case data_type::BINARY:
+    {
+        // binary data should be accessed as a view too, to avoid duplicating data
+        // into memory
+        if (remainingSize < 2) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<payload_proxy>{};
+        }
+
+        uint16_t dataLen = (buff[0] << 0x8) | buff[1];
+
+        if (remainingSize < (2U + dataLen)) {
+            rCode = reason_code::MALFORMED_PACKET;
+            return std::unique_ptr<payload_proxy>{};
+        }
+
+        std::vector<uint8_t> data;
+        data.assign(buff + 2, buff + 2 + dataLen);
+        std::unique_ptr<payload_proxy> payloadData(
+            new payload<std::vector<uint8_t>>(ptype, data)
+        );
+
+        payloadSize = dataLen + 2;
+        return payloadData;
+    }
+    default:
+        payloadSize = 0;
         rCode = reason_code::MALFORMED_PACKET;
         return std::unique_ptr<payload_proxy>{};
     }
-    uint16_t strLen = (buff[0] << 0x8) | buff[1];
-
-    if (remainingSize < (2U + strLen)) {
-        rCode = reason_code::MALFORMED_PACKET;
-        return std::unique_ptr<payload_proxy>{};
-    }
-
-    if (utils::decode_utf8_str(buff, str, offset) != return_code::OK) {
-        rCode = reason_code::MALFORMED_PACKET;
-        return std::unique_ptr<payload_proxy>{};
-    }
-
-    std::unique_ptr<payload_proxy> propertyData(
-        new payload<std::string_view>(ptype, str)
-    );
-    return propertyData;
-
 }
 
 } //namespace property

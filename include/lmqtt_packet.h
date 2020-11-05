@@ -198,13 +198,14 @@ class packet {
         uint32_t propertyLength = 0;
         uint8_t varSize = 0; // length of the variable in the buffer
         // here, we are pretty comfortable that the buffer size is more than 13
-        if (utils::decode_variable_int(_body.data() + 10, propertyLength, varSize) != return_code::OK) {
+        if (utils::decode_variable_int(_body.data() + 10, propertyLength, varSize, _body.size() - 10) != return_code::OK) {
             return reason_code::MALFORMED_PACKET;
         }
         std::cout << "Decoded variable size " << propertyLength << std::endl;
 
         // decode at position 10 + variable int size + 1
         reason_code rCode;
+        // TODO: should be buffer indexed
         rCode = decode_properties(10 + varSize + 1, propertyLength);
         if (rCode != reason_code::SUCCESS) {
             return rCode;
@@ -246,7 +247,7 @@ class packet {
         return reason_code::SUCCESS;
     }
 
-    const reason_code decode_properties(uint8_t start, uint32_t size) {
+    const reason_code decode_properties(uint32_t start, uint32_t size) {
         // first, check if the _body can hold this data
         if (_body.size() < (start + size)) {
             return reason_code::MALFORMED_PACKET;
@@ -323,7 +324,7 @@ class packet {
     }
 
     // TODO: Change to uint8_t*
-    const reason_code decode_payload(uint8_t start) {
+    const reason_code decode_payload(uint32_t start) {
         // find a way to check for overflow
         if (_body.size() < start) {
             return reason_code::MALFORMED_PACKET;
@@ -332,31 +333,71 @@ class packet {
         // since the payload is the last part of the body, it is easy to check
         // for out-of-range read
         // TODO: Only temporary, for proof of concept
-        uint32_t payloadSize = _body.size() - start;
+        uint32_t totalPayloadSize = _body.size() - start;
         uint8_t* buff = _body.data() + start;
-        const uint8_t* buffEnd = buff + payloadSize;
+        const uint8_t* buffEnd = buff + totalPayloadSize;
 
-        // temporary, for testing purposes
-        const payload::payload_type ptype = payload::payload_type::CLIENT_ID;
+        for (const auto ptype : _payloadFlags) {
 
-        uint32_t remainingSize = buffEnd - buff;
-        reason_code rCode;
-        uint32_t readPayloadSize = 0;
-        auto payloadDataPtr = payload::get_payload(
-            ptype,  // payload type: will be used to identify what type of data to extract
-            buff,  // the buffer pointer to extract the property data from
-            remainingSize,
-            readPayloadSize,
-            rCode
-        );
+            if (buff == buffEnd) {
+                // finally
+                return reason_code::SUCCESS;
+            }
 
-        // TODO: (only for debugging) Remove this or replace with a trace
-        if (ptype == payload::payload_type::CLIENT_ID) {
-            std::cout << "Displaying payload content: \n";
-            payload::payload_proxy* data = payloadDataPtr.get();
-            payload::payload<std::string_view>* realData =
-                static_cast<payload::payload<std::string_view>*>(data);
-            std::cout << " CLIENT_ID : " << realData->get_data() << std::endl;
+            if (buff > buffEnd) {
+                return reason_code::MALFORMED_PACKET;
+            }
+
+            if (ptype == payload::payload_type::UNKNOWN) continue;
+
+
+            uint32_t remainingSize = buffEnd - buff;
+            reason_code rCode;
+            uint32_t readPayloadSize = 0;
+
+            if (ptype == payload::payload_type::WILL_PROPERTIES) {
+                uint32_t willPropertyLength = 0;
+                uint8_t varSize = 0;
+                if (utils::decode_variable_int(buff, willPropertyLength, varSize, remainingSize) != return_code::OK) {
+                    return reason_code::MALFORMED_PACKET;
+                }
+
+                buff += varSize;
+                reason_code rCode;
+                rCode = decode_properties(buff - _body.data(), willPropertyLength);
+                if (rCode != reason_code::SUCCESS) {
+                    return rCode;
+                }
+
+                buff += willPropertyLength;
+            } else {
+
+                auto payloadDataPtr = payload::get_payload(
+                    ptype,  // payload type: will be used to identify what type of data to extract
+                    buff,  // the buffer pointer to extract the property data from
+                    remainingSize,
+                    readPayloadSize,
+                    rCode
+                );
+
+                if (rCode != reason_code::SUCCESS) {
+                    return rCode;
+                }
+
+                // move the buffer pointer to the next read
+                buff += readPayloadSize;
+
+                // TODO: (only for debugging) Remove this or replace with a trace
+                if (ptype == payload::payload_type::CLIENT_ID) {
+                    std::cout << "Displaying payload content: \n";
+                    payload::payload_proxy* data = payloadDataPtr.get();
+                    payload::payload<std::string_view>* realData =
+                        static_cast<payload::payload<std::string_view>*>(data);
+                    std::cout << " CLIENT_ID : " << realData->get_data() << std::endl;
+                }
+                
+                _payloads.emplace_back(std::move(payloadDataPtr));
+            }
         }
 
         return reason_code::SUCCESS;
@@ -423,13 +464,17 @@ private:
     uint8_t _qos = 0;
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
     std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
+    std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
+
+    // order is important and the maximum number of payloads is known so use a container
+    // at compile time
     std::array<payload::payload_type, 6> _payloadFlags{
         payload::payload_type::CLIENT_ID,
-        payload::payload_type::WILL_PROPERTIES,
-        payload::payload_type::WILL_TOPIC,
-        payload::payload_type::WILL_PAYLOAD,
-        payload::payload_type::USER_NAME,
-        payload::payload_type::PASSWORD
+        payload::payload_type::UNKNOWN,
+        payload::payload_type::UNKNOWN,
+        payload::payload_type::UNKNOWN,
+        payload::payload_type::UNKNOWN,
+        payload::payload_type::UNKNOWN
     };
     // maybe use a std::variant in the future
     //std::unordered_map <property::property_type, std::variant<std::string, uint16_t, uint32_t, std::vector<uint8_t>>> _propertyData;
