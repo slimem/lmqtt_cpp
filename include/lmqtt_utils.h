@@ -24,7 +24,8 @@ public:
             if (offset >= buffSize) {
                 return return_code::FAIL;
             }
-            decodedValue += buffer[offset] & 0x7f * mul;
+            std::cout << (int)buffer[offset] << std::endl;
+            decodedValue += (buffer[offset] & 0x7f) * mul;
             if (mul > 0x200000) { // 128 * 128 * 128
                 return return_code::FAIL;
             }

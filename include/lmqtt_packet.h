@@ -229,24 +229,6 @@ class packet {
         return reason_code::SUCCESS;
     }
 
-    // this method is a special case since it it used to decode the packet length, where the asio buffer
-    // reads one byte at a time. So if the "next" argument is true, it means that we should read another
-    // byte and so on. If we read more than 4 (_mul is multiplied 4 times) it means that the packet is
-    // malformed.
-    [[nodiscard]] const reason_code decode_packet_length(const uint8_t rbyte, bool& next) noexcept {
-        std::cout << "Reading " << std::bitset<8>(rbyte) << "(mul = " << std::hex << _mul << ")";
-        _header._packetLen += rbyte & 0x7f * _mul;
-        std::cout << "packet len = " << _header._packetLen << std::endl;
-        if (_mul > 0x200000) { // 128 * 128 * 128
-            return reason_code::MALFORMED_PACKET;
-        }
-        _mul *= 0x80; // next byte
-        
-        (rbyte & 0x80) ? next = true : next = false; // continuation bit, read next value
-        
-        return reason_code::SUCCESS;
-    }
-
     const reason_code decode_properties(uint32_t start, uint32_t size) {
         // first, check if the _body can hold this data
         if (_body.size() < (start + size)) {
@@ -460,7 +442,6 @@ protected:
         return false; // keep the compiler happy
     }
 private:
-    uint8_t _mul = 1; // multiplier for the variable byte integer decoder
     uint8_t _qos = 0;
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
     std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;

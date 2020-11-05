@@ -102,7 +102,33 @@ namespace lmqtt {
 						}
 
 						// read packet length
-						read_packet_length();
+						uint8_t mul = 1;
+						uint32_t packetLenth = 0;
+
+						// the following section is used to decode the packet length, where we use the asio buffer to read
+						// one byte at a time. So if the MSB bit = 1, we read the next byte and so and fourth. If we read 
+						// more than 4 (mul is multiplied 4 times) it means that the packet is malformed.
+						reason_code rCode = reason_code::SUCCESS;
+						for (uint32_t offset = 0; offset < 4; ++offset) {
+							uint8_t nextByte = read_byte();
+							_tempPacket._header._packetLen += (nextByte & 0x7f) * mul;
+							if (mul > 0x200000) { // 128 * 128 * 128
+								rCode = reason_code::MALFORMED_PACKET;
+							}
+							mul *= 0x80; // prepare for next byte
+							if (!(nextByte & 0x80) || (rCode == reason_code::MALFORMED_PACKET)) break;
+						}
+
+						if (rCode == reason_code::MALFORMED_PACKET) {
+							_socket.close();
+							return;
+						}
+
+						// resize packet body to hold the rest of the data
+						_tempPacket._body.resize(_tempPacket._header._packetLen);
+						
+						read_packet_body();
+						_socket.close();
 
 					} else {
 						std::cout << "[" << _id << "] Reading Header Failed: " << ec.message() << "\n";
@@ -112,43 +138,22 @@ namespace lmqtt {
 			);
 		}
 
-		void read_packet_length() {
+		[[nodiscard]] uint8_t read_byte() {
+			uint8_t byte;
 			asio::async_read(
 				_socket,
 				asio::buffer(
-					&_byte,
+					&byte,
 					sizeof(uint8_t)
 				),
 				[this](std::error_code ec, size_t length) {
-					if (!ec) {
-						bool next = false;
-						if (_tempPacket.decode_packet_length(_byte, next) == reason_code::MALFORMED_PACKET) {
-							_socket.close();
-						}
-						if (next) {
-							read_packet_length();
-						}
-						std::cout << "Finished, disconnecting\n";
-						std::cout << "Header length = " << unsigned(_tempPacket._header.size()) << std::endl;
-						std::cout << _tempPacket._header._packetLen << std::endl;
-
-						// resize body length
-						std::cout << "initial size " << _tempPacket._body.size() << std::endl;
-						std::cout << "will resize to " << _tempPacket._header._packetLen << std::endl;
-						_tempPacket._body.resize(_tempPacket._header._packetLen);
-
-						// read the body of the packet (variable header + payload)
-						read_packet_body();
-						_socket.close();
-
-						//_socket.close();
-
-					} else {
-						std::cout << "[" << _id << "] Reading packet length Failed: " << ec.message() << "\n";
+					if (ec) {
+						std::cout << "[" << _id << "] Reading Byte Failed: " << ec.message() << "\n";
 						_socket.close();
 					}
 				}
 			);
+			return byte;
 		}
 
 		void read_packet_body() {
@@ -164,7 +169,10 @@ namespace lmqtt {
 						std::cout << "Total packet length: " << _tempPacket.size() << std::endl;
 						std::cout << "BODY SIZE: " << _tempPacket._body.size() << std::endl;
 
-						_tempPacket.decode_packet_body();
+						// TODO: Only temporary here
+						if (_tempPacket.decode_packet_body() != reason_code::SUCCESS) {
+							_socket.close();
+						}
 						_socket.close();
 
 					} else {
