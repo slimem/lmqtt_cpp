@@ -7,6 +7,7 @@
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
+#include <array>
 
 //for debugging
 #include <bitset>

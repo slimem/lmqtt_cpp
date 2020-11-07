@@ -26,7 +26,6 @@ namespace lmqtt {
 			_socket(std::move(socket))
 		{
 			_owner = parent;
-			_byte = 0U;
 		}
 
 		virtual ~connection() {}
@@ -128,7 +127,6 @@ namespace lmqtt {
 						_tempPacket._body.resize(_tempPacket._header._packetLen);
 						
 						read_packet_body();
-						_socket.close();
 
 					} else {
 						std::cout << "[" << _id << "] Reading Header Failed: " << ec.message() << "\n";
@@ -166,13 +164,14 @@ namespace lmqtt {
 				[this](std::error_code ec, size_t length) {
 					if (!ec) {
 						_socket.close();
-						std::cout << "Total packet length: " << _tempPacket.size() << std::endl;
-						std::cout << "BODY SIZE: " << _tempPacket._body.size() << std::endl;
 
 						// TODO: Only temporary here
 						if (_tempPacket.decode_packet_body() != reason_code::SUCCESS) {
+							// According to packet type, we create our ACK packet to be sent to the client
+
 							_socket.close();
 						}
+						
 						_socket.close();
 
 					} else {
@@ -194,7 +193,6 @@ namespace lmqtt {
 		owner _owner = owner::server;
 		uint32_t _id = 0;
 
-		uint8_t _byte;
 		packet _tempPacket;
 
 

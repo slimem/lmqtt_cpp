@@ -88,7 +88,6 @@ class packet {
 
     [[nodiscard]] const reason_code decode_packet_body() {
         // for now, only decode CONNECT packet
-        std::cout << "decoding packet body\n";
         switch (_type) {
         case packet_type::CONNECT:
             return decode_connect_packet_body();
@@ -201,7 +200,6 @@ class packet {
         if (utils::decode_variable_int(_body.data() + 10, propertyLength, varSize, _body.size() - 10) != return_code::OK) {
             return reason_code::MALFORMED_PACKET;
         }
-        std::cout << "Decoded variable size " << propertyLength << std::endl;
 
         // decode at position 10 + variable int size + 1
         reason_code rCode;
@@ -225,6 +223,7 @@ class packet {
         //std::chrono::system_clock::time_point timeThen;
         //msg >> timeThen;
         //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
+        std::cout << "FINISHED PARSING PACKET\n";
 
         return reason_code::SUCCESS;
     }
@@ -290,11 +289,10 @@ class packet {
 
             // TODO: (only for debugging) Remove this or replace with a trace
             if (ptype == property::property_type::USER_PROPERTY) {
-                std::cout << "Displaying property content: \n";
                 property::property_data_proxy* data = propertyDataPtr.get();
                 property::property_data<std::pair<std::string_view,std::string_view>>* realData = 
                     static_cast<property::property_data<std::pair<std::string_view, std::string_view>>*>(data);
-                std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
+                //std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
             }
 
             _propertyTypes.emplace_back(std::move(propertyDataPtr));
@@ -371,11 +369,10 @@ class packet {
 
                 // TODO: (only for debugging) Remove this or replace with a trace
                 if (ptype == payload::payload_type::CLIENT_ID) {
-                    std::cout << "Displaying payload content: \n";
                     payload::payload_proxy* data = payloadDataPtr.get();
                     payload::payload<std::string_view>* realData =
                         static_cast<payload::payload<std::string_view>*>(data);
-                    std::cout << " CLIENT_ID : " << realData->get_data() << std::endl;
+                    //std::cout << "CLIENT_ID : " << realData->get_data() << std::endl;
                 }
                 
                 _payloads.emplace_back(std::move(payloadDataPtr));
@@ -386,13 +383,36 @@ class packet {
     }
 
     friend std::ostream& operator << (std::ostream& os, const packet& packet) {
-        os << "PAKCET_TYPE: " << to_string(packet._type) << ", FIXED_HEADER SIZE: " << sizeof(packet._header) << "\n";
+        os << "PACKET_TYPE: " << to_string(packet._type) << ", FIXED_HEADER SIZE: " << sizeof(packet._header) << "\n";
         return os;
     }
 
 public:
     size_t size() const noexcept {
         return _header.size() + _body.size();
+    }
+
+public:
+    static std::unique_ptr<packet> create_packet(
+        packet packetType,
+        reason_code reasonCode
+    ) {
+        if (!packet::utils::is_server_packet(packetType)) {
+            return std::unique_ptr<packet>{};
+        }
+        // create empty packet
+        std::unique_ptr<packet> lmqttPacket(
+            new packet()
+        );
+
+        // create fixed header
+        // TODO
+        lmqttPacket->_header._controlField =
+            CONNACK;
+        std::unique_ptr<payload_proxy> payloadData(
+            new payload<std::string_view>(ptype, str)
+        );
+        return lmqttPacket;
     }
 
 protected:

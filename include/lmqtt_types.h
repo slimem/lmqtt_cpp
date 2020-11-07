@@ -51,6 +51,13 @@ const std::string_view to_string(packet_type type) noexcept {
     return ""; // keep the compiler happy
 }
 
+enum class packet_owner : uint8_t {
+    SERVER,
+    CLIENT,
+    BOTH,
+    NONE
+};
+
 enum class packet_flag : uint8_t {
     //           VALUE                 FLAG          
     RESERVED    = 0x0,        //   ***Reserved***
@@ -70,6 +77,50 @@ enum class packet_flag : uint8_t {
     DISCONNECT  = 0x0,        //   ***Reserved***
     AUTH        = 0x0,        //   ***Reserved***
 };
+
+namespace packet {
+class utils {
+public:
+
+    static constexpr const packet_owner get_packet_owner(packet_type ptype) noexcept {
+        switch (ptype) {
+        case packet_type::RESERVED:
+            return packet_owner::NONE;
+        case packet_type::CONNECT:
+        case packet_type::SUBSCRIBE:
+        case packet_type::UNSUBSCRIBE:
+        case packet_type::PINGREQ:
+            return packet_owner::CLIENT;
+        case packet_type::CONNACK:
+        case packet_type::UNSUBACK:
+        case packet_type::PINGRESP:
+            return packet_owner::SERVER;
+        case packet_type::PUBLISH:
+        case packet_type::PUBACK:
+        case packet_type::PUBREC:
+        case packet_type::PUBREL:
+        case packet_type::PUBCOMP:
+        case packet_type::SUBACK:
+        case packet_type::DISCONNECT:
+        case packet_type::AUTH:
+            return packet_owner::BOTH;
+        default:
+            return packet_owner::NONE;
+        }
+    }
+
+    static constexpr const bool is_server_packet(packet_type ptype) noexcept {
+        return (get_packet_owner(ptype) == packet_owner::SERVER)
+            || (get_packet_owner(ptype) == packet_owner::BOTH);
+    }
+
+    static constexpr const bool is_client_packet(packet_type ptype) noexcept {
+        return (get_packet_owner(ptype) == packet_owner::CLIENT)
+            || (get_packet_owner(ptype) == packet_owner::BOTH);
+    }
+};
+
+} // namespace packet
 
 enum class data_type : uint8_t {
     BYTE,
