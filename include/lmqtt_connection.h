@@ -123,6 +123,13 @@ namespace lmqtt {
 							return;
 						}
 
+						// only allow packets with a certain size
+						if (_tempPacket._header._packetLen > PACKET_SIZE_LIMIT) {
+							std::cout << "[" << _id << "] Closed connection. Reason: Packet size limit exceeded\n";
+							_socket.close();
+							return;
+						}
+
 						// resize packet body to hold the rest of the data
 						_tempPacket._body.resize(_tempPacket._header._packetLen);
 						
@@ -193,7 +200,7 @@ namespace lmqtt {
 		owner _owner = owner::server;
 		uint32_t _id = 0;
 
-		packet _tempPacket;
+		lmqtt_packet _tempPacket;
 
 
 	};

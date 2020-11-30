@@ -25,7 +25,7 @@ struct fixed_header {
  * Fixed Header + Variable Header: PUBACK
  * Fixed Header + Variable Header + Payload: CONNECT
  */
-class packet {
+class lmqtt_packet {
     friend class connection;
 
     fixed_header _header {};
@@ -96,6 +96,7 @@ class packet {
     }
 
     [[nodiscard]] const reason_code decode_connect_packet_body() {
+        std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
         // TODO: use a uint8_t* and advance it until we reach uint8_t* + body().size()
         // This way, we can avoid indexed access alltogether.
         // For now, we use an indexed access since we are only decoding CONNECT packet
@@ -219,11 +220,12 @@ class packet {
 
 
 
+        std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
         //std::chrono::system_clock::time_point timeThen;
         //msg >> timeThen;
         //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
-        std::cout << "FINISHED PARSING PACKET\n";
+        std::cout << "FINISHED PARSING PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
 
         return reason_code::SUCCESS;
     }
@@ -382,7 +384,7 @@ class packet {
         return reason_code::SUCCESS;
     }
 
-    friend std::ostream& operator << (std::ostream& os, const packet& packet) {
+    friend std::ostream& operator << (std::ostream& os, const lmqtt_packet& packet) {
         os << "PACKET_TYPE: " << to_string(packet._type) << ", FIXED_HEADER SIZE: " << sizeof(packet._header) << "\n";
         return os;
     }
@@ -393,25 +395,26 @@ public:
     }
 
 public:
-    static std::unique_ptr<packet> create_packet(
-        packet packetType,
+    static std::unique_ptr<lmqtt_packet> create_packet(
+        packet_type packetType,
         reason_code reasonCode
     ) {
         if (!packet::utils::is_server_packet(packetType)) {
-            return std::unique_ptr<packet>{};
+            return std::unique_ptr<lmqtt_packet>{};
         }
+
         // create empty packet
-        std::unique_ptr<packet> lmqttPacket(
-            new packet()
+        std::unique_ptr<lmqtt_packet> lmqttPacket(
+            new lmqtt_packet()
         );
 
         // create fixed header
         // TODO
         lmqttPacket->_header._controlField =
-            CONNACK;
-        std::unique_ptr<payload_proxy> payloadData(
+            static_cast<uint8_t>(packet_flag::CONNACK);
+        /*std::unique_ptr<payload_proxy> payloadData(
             new payload<std::string_view>(ptype, str)
-        );
+        );*/
         return lmqttPacket;
     }
 

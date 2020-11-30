@@ -20,3 +20,7 @@
 #include <asio.hpp>
 #include <asio/ts/buffer.hpp>
 #include <asio/ts/internet.hpp>
+
+// packet size limit 1 mo
+//#define PACKET_SIZE_LIMIT 1 << 20
+#define PACKET_SIZE_LIMIT 1 << 10 // 1 KO
