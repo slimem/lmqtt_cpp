@@ -395,6 +395,7 @@ public:
     }
 
 public:
+    
     static std::unique_ptr<lmqtt_packet> create_packet(
         packet_type packetType,
         reason_code reasonCode
