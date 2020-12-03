@@ -26,8 +26,8 @@ public:
 
 	void connect_to_client(uint32_t id = 0) noexcept {
 		if (_socket.is_open()) {
-			_id = id;
-		
+			//_id = id;
+
 			// read availabe messages
 			read_fixed_header();
 		}
@@ -67,6 +67,15 @@ private:
 					if (rcode == reason_code::MALFORMED_PACKET
 						|| rcode == reason_code::PROTOCOL_ERROR) {
 						_socket.close();
+					}
+
+					// on first connection, only accept CONNECT packets
+					if (_isFirstPacket) {
+						if (_tempPacket._type != packet_type::CONNECT) {
+							_socket.close();
+							return;
+						}
+						_isFirstPacket = false;
 					}
 
 					// read packet length
@@ -139,16 +148,34 @@ private:
 			),
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
-					_socket.close();
 
-					// TODO: Only temporary here
-					if (_tempPacket.decode_packet_body() != reason_code::SUCCESS) {
+					reason_code rcode;
+					switch (_tempPacket._type) {
+					case packet_type::CONNECT:
+					{
+						rcode = _tempPacket.decode_connect_packet_body();
+						break;
+					}
+					}
+
+					payload::payload_proxy* data = _tempPacket._payloads[0].get();
+					payload::payload<std::string_view>* realData =
+						static_cast<payload::payload<std::string_view>*>(data);
+
+					std::cout << "[" << realData->get_data() << "] Connection Approved\n";
+
+					_socket.close();
+					return;
+
+
+					/*if (_tempPacket.decode_packet_body() != reason_code::SUCCESS) {
 						// According to packet type, we create our ACK packet to be sent to the client
 
 						_socket.close();
-					}
+					}*/
 					
-					_socket.close();
+					read_packet();
+					//read_fixed_header();
 
 				} else {
 					std::cout << "[" << _id << "] Reading pakcet body Failed: " << ec.message() << "\n";
@@ -156,6 +183,30 @@ private:
 				}
 			}
 		);
+	}
+
+	void read_packet() {
+
+		switch (_tempPacket._type) {
+		case packet_type::CONNECT:
+		{
+			configure_client();
+			break;
+		}
+
+
+		}
+
+		read_fixed_header();
+	}
+
+	void configure_client() {
+
+	}
+
+public:
+	void set_client_id(const std::string_view& clientId) {
+		_clientId = clientId;
 	}
 
 protected:
@@ -168,7 +219,12 @@ protected:
 	// connection ID
 	uint32_t _id = 0;
 
+	// on connect, we expect a connect packet
+	bool _isFirstPacket = true;
+
 	lmqtt_packet _tempPacket;
+
+	std::string_view _clientId;
 };
 
 } // namespace lmqtt

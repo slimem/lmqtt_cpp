@@ -74,11 +74,15 @@ protected:
 						// if the connection was accepted, we push it to our connections container.
 						// if the connection was not accepted, the new connection will be destroyed
 						// since we are using a smart pointer
-						_activeConnections.push_back(std::move(newConnection));
 
-						_activeConnections.back()->connect_to_client(_idCounter++);
+						//newConnection->connect_to_client();
 
-						std::cout << "[" << _activeConnections.back()->get_id() << "] Connection Approved\n";
+						_activeSessions.push_back(std::move(newConnection));
+
+						_activeSessions.back()->connect_to_client(_idCounter++);
+
+						std::cout << "[" << _activeSessions.back()->get_id() << "] Connection Approved\n";
+						//std::cout << "[" << newConnection->get_id() << "] Connection Approved\n";
 
 					} else {
 						std::cout << "[SERVER] Connection to " << socket.remote_endpoint() << " Denied. Reason: Reached maximum number of allowed connections\n";
@@ -101,7 +105,7 @@ protected:
 protected:
 
 	bool on_client_connection(std::shared_ptr<connection> connection) {
-		if (_activeConnections.size() > 2) {
+		if (_activeSessions.size() > 5) {
 			return false;
 		}
 		return true;
@@ -110,7 +114,9 @@ protected:
 protected:
 
 	// container for active connections
-	std::deque<std::shared_ptr<connection>> _activeConnections;
+	std::deque<std::shared_ptr<connection>> _activeSessions;
+
+
 
 	// for the server to actually run with asio
 	asio::io_context _context;
