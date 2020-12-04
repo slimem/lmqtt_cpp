@@ -1,7 +1,5 @@
 #pragma once
 
-#include "lmqtt_common.h"
-
 namespace lmqtt {
 enum class reason_code : uint8_t {
     SUCCESS                                 = 0x00,

@@ -81,11 +81,10 @@ protected:
 
 						_activeSessions.back()->connect_to_client(_idCounter++);
 
-						std::cout << "[" << _activeSessions.back()->get_id() << "] Connection Approved\n";
-						//std::cout << "[" << newConnection->get_id() << "] Connection Approved\n";
+						std::cout << "[" << _activeSessions.back()->get_remote_endpoint() << "] Connection Accepted, waiting for identification..\n";
 
 					} else {
-						std::cout << "[SERVER] Connection to " << socket.remote_endpoint() << " Denied. Reason: Reached maximum number of allowed connections\n";
+						std::cout << "[SERVER] Connection to " << newConnection->get_remote_endpoint() << " Denied. Reason: Reached maximum number of allowed connections\n";
 					}
 
 				} else {

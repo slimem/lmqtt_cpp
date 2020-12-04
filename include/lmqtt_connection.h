@@ -204,7 +204,13 @@ private:
 
 	}
 
+
 public:
+
+	std::string get_remote_endpoint() const {
+		return _socket.remote_endpoint().address().to_string();
+	}
+
 	void set_client_id(const std::string_view& clientId) {
 		_clientId = clientId;
 	}

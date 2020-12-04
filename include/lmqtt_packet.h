@@ -103,9 +103,11 @@ class lmqtt_packet {
         // for a proof of concept. Then in the future, to support all packet types, we
         // must decode them in a more generic manner.
 
+        uint8_t* ptr = _body.data();
+
         // byte 0 : length MSB
         // byte 1 : length LSB
-        const uint8_t protocolNameLen = _body[1] - _body[0];
+        const uint8_t protocolNameLen = *(ptr + 1) - *ptr;
         if (protocolNameLen != 0x4) {
             return reason_code::MALFORMED_PACKET;
         }
@@ -113,11 +115,10 @@ class lmqtt_packet {
         {
             // bytes 2 3 4 5 : MQTT protocol
             const uint8_t protocolOffset = 2;
+            const uint8_t protocolSize = 4;
             //char mqttStr[4];
 
-            // TODO: replace with a string_view
-            //std::memcpy(mqttStr, _body.data() + protocolOffset, 4);
-            std::string_view mqttStr((char*)_body.data() + protocolOffset, 4);
+            std::string_view mqttStr((char*) ptr + protocolOffset, protocolSize);
 
             // compare non null terminated string
             //if (std::strncmp(mqttStr, "MQTT", 4)) {
@@ -127,16 +128,20 @@ class lmqtt_packet {
             }
         }
 
-        // byte 6 : MQTT version
-        if (_body[6] != 0x5) {
-            return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
+        {
+            // byte 6 : MQTT version
+            const uint8_t mqttVersionOffset = 6;
+            if (*(ptr + mqttVersionOffset) != 0x5) {
+                return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
+            }
         }
 
         // Connect flags are only applicable to CONNECT packets. So the idea here is to
         // treat each packet as a connect packet then improve further and further
         // byte 7 : Connect flags
         {
-            const uint8_t flags = _body[7];
+            const uint8_t flagOffset = 7;
+            const uint8_t flags = *(ptr + flagOffset);
             // bit 0 : Reserved : first check the reserved flag is set to 0
             // ~~ [MQTT-3.1.2-3]
             if (flags & 0x1) {
@@ -146,57 +151,60 @@ class lmqtt_packet {
             // Extract the reset of the flags with bitmasking
             //TODO: Replace with bitfield in the future
             // bit 1 : Clean start
-            const uint8_t cleanStart = (flags & 0x2) >> 1;
+            _cleanStart = (flags & 0x2) >> 1;
 
             {
                 // bit 2 : Will Flag
-                const uint8_t willFlag = (flags & 0x4) >> 2;
+                _willFlag = (flags & 0x4) >> 2;
                 
-                uint8_t willQoS = 0;
-                
-                if (willFlag) {
+                if (_willFlag) {
                     _payloadFlags[utils::to_underlying(payload::payload_type::WILL_PROPERTIES)] = payload::payload_type::WILL_PROPERTIES;
                     _payloadFlags[utils::to_underlying(payload::payload_type::WILL_TOPIC)]      = payload::payload_type::WILL_TOPIC;
                     _payloadFlags[utils::to_underlying(payload::payload_type::WILL_PAYLOAD)]    = payload::payload_type::WILL_PAYLOAD;
                     
                     // bit 3 and 4 : Will QoS
-                    willQoS = (flags & 0x18) >> 3;
+                    _willQos = (flags & 0x18) >> 3;
                     
                     // check if willQos is valid
-                    if (willQoS == 0x3) {
+                    if (_willQos == 0x3) {
                         return reason_code::MALFORMED_PACKET;
                     }
                 } else {
-                    willQoS = 0;
+                    _willQos = 0;
                 }
 
                 // TODO: Use in the future
                 // bit 5 : Will retain
-                const uint8_t willRetain = (flags & 0x20) >> 5;
+                _willRetain = (flags & 0x20) >> 5;
             }
 
             // bit 6 : Password Flag
-            const uint8_t passwordFlag = (flags & 0x40) >> 6;
-            if (passwordFlag) {
+            _passwordFlag = (flags & 0x40) >> 6;
+            if (_passwordFlag) {
                 _payloadFlags[utils::to_underlying(payload::payload_type::PASSWORD)] = payload::payload_type::PASSWORD;
             }
             // bit 7 : User name flag
-            const uint8_t userNameFlag = (flags & 0x80) >> 7;
-            if (userNameFlag) {
+            _userNameFlag = (flags & 0x80) >> 7;
+            if (_userNameFlag) {
                 _payloadFlags[utils::to_underlying(payload::payload_type::USER_NAME)] = payload::payload_type::USER_NAME;
             }
         }
 
-        // byte 8 and 9 : Keep alive MSB and LSB
-        const uint16_t keepAlive = (_body[8] << 8) | _body[9];
+        {
+            // byte 8 and 9 : Keep alive MSB and LSB
+            const uint8_t keepAliveSize = 2;
+            const uint8_t keepAliveOffset = 8;
+            _keepAlive = (*(ptr + keepAliveOffset) << 8) | *(ptr + keepAliveOffset + 1);
+        }
 
         // check if body size can hold a maximum variable length int (base + 3)
         if (_body.size() < 13) { // starts at 10 and ends at 13
             return reason_code::MALFORMED_PACKET;
         }
+
         // now compute the variable
         uint32_t propertyLength = 0;
-        uint8_t varSize = 0; // length of the variable in the buffer
+        uint8_t varSize = 0; // length of the variable in the buffer 
         // here, we are pretty comfortable that the buffer size is more than 13
         if (utils::decode_variable_int(_body.data() + 10, propertyLength, varSize, _body.size() - 10) != return_code::OK) {
             return reason_code::MALFORMED_PACKET;
@@ -217,8 +225,6 @@ class lmqtt_packet {
         if (rCode != reason_code::SUCCESS) {
             return rCode;
         }
-
-
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         //std::chrono::system_clock::time_point timeNow = std::chrono::system_clock::now();
@@ -419,6 +425,12 @@ public:
         return lmqttPacket;
     }
 
+public:
+    // connect packet attributes
+    [[nodiscard]] constexpr bool is_clean_start() {
+        return _cleanStart;
+    }
+
 protected:
     const std::string_view get_type_string() const noexcept {
         switch (_type) {
@@ -467,6 +479,16 @@ protected:
     }
 private:
     uint8_t _qos = 0;
+    
+    uint8_t _cleanStart = 0;
+    uint8_t _willFlag = 0;
+    uint8_t _willQos = 0;
+    uint8_t _willRetain = 0;
+    uint8_t _passwordFlag = 0;
+    uint8_t _userNameFlag = 0;
+    uint16_t _keepAlive = 0;
+
+
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
     std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
     std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
