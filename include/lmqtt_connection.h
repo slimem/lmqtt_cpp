@@ -158,11 +158,13 @@ private:
 					}
 					}
 
-					payload::payload_proxy* data = _tempPacket._payloads[0].get();
+					read_packet();
+
+					/*payload::payload_proxy* data = _tempPacket._payloads[0].get();
 					payload::payload<std::string_view>* realData =
 						static_cast<payload::payload<std::string_view>*>(data);
 
-					std::cout << "[" << realData->get_data() << "] Connection Approved\n";
+					std::cout << "[" << realData->get_data() << "] Connection Approved\n";*/
 
 					_socket.close();
 					return;
@@ -174,7 +176,6 @@ private:
 						_socket.close();
 					}*/
 					
-					read_packet();
 					//read_fixed_header();
 
 				} else {
@@ -201,7 +202,13 @@ private:
 	}
 
 	void configure_client() {
+		for (uint8_t i = 0; i < _tempPacket._payloads.size(); ++i) {
 
+			auto ptype = _tempPacket._payloads[i]->get_payload_type();
+
+
+
+		}
 	}
 
 

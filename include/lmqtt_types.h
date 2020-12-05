@@ -62,8 +62,8 @@ enum class packet_flag : uint8_t {
     //           VALUE                 FLAG          
     RESERVED    = 0x0,        //   ***Reserved***
     CONNECT     = 0x0,        //   ***Reserved***
-    CONNACK     = 0xF,        //   | DUP | QoS | QoS | RETAIN
-    PUBLISH     = 0x0,        //   ***Reserved***
+    CONNACK     = 0x0,        //   ***Reserved***
+    PUBLISH     = 0xF,        //   | DUP | QoS | QoS | RETAIN
     PUBACK      = 0x0,        //   ***Reserved***
     PUBREC      = 0x0,        //   ***Reserved***
     PUBREL      = 0x2,        //   ***Reserved***

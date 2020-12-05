@@ -107,7 +107,7 @@ class lmqtt_packet {
 
         // byte 0 : length MSB
         // byte 1 : length LSB
-        const uint8_t protocolNameLen = *(ptr + 1) - *ptr;
+        const uint8_t protocolNameLen = *(ptr + 1) + *ptr;
         if (protocolNameLen != 0x4) {
             return reason_code::MALFORMED_PACKET;
         }
@@ -115,15 +115,14 @@ class lmqtt_packet {
         {
             // bytes 2 3 4 5 : MQTT protocol
             const uint8_t protocolOffset = 2;
-            const uint8_t protocolSize = 4;
             //char mqttStr[4];
 
-            std::string_view mqttStr((char*) ptr + protocolOffset, protocolSize);
+            std::string_view mqttStr((char*) ptr + protocolOffset, protocolNameLen);
 
             // compare non null terminated string
             //if (std::strncmp(mqttStr, "MQTT", 4)) {
             if (mqttStr.compare("MQTT")) {
-                // ~~ [MQTT-3.1.2-2]
+                // ~~ [MQTT-3.1.2-1]
                 return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
             }
         }
@@ -132,6 +131,7 @@ class lmqtt_packet {
             // byte 6 : MQTT version
             const uint8_t mqttVersionOffset = 6;
             if (*(ptr + mqttVersionOffset) != 0x5) {
+                // ~~ [MQTT-3.1.2-2]
                 return reason_code::UNSUPPORTED_PROTOCOL_VERSION;
             }
         }
@@ -486,10 +486,12 @@ private:
     uint8_t _willRetain = 0;
     uint8_t _passwordFlag = 0;
     uint8_t _userNameFlag = 0;
-    uint16_t _keepAlive = 0;
+    uint16_t _keepAlive = 0; // zero means infinite
 
 
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
+
+protected:
     std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
     std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
 
