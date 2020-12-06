@@ -10,4 +10,6 @@ I chose to use **non-boost asio** because it will be supported in c++ standard.
 The server now parses CONNECT packets. In the near future, the server will be able to accept a connection and send pack an ACK packet.
 The server will only accept packets with a payload size no more than 1 MB.
 
+The next step is to impelement a thread-safe priority queue that handles timeouts (keep alive/ session expiration) for sessions.
+
 The files in this repository do not compile into a fully working server. As soon as I get a simple server running (that does a CONNECT/CONNACK transaction), I will push all required files to this repo.
