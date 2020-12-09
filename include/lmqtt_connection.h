@@ -158,7 +158,7 @@ private:
 					}
 					}
 
-					read_packet();
+					//read_packet();
 
 					/*payload::payload_proxy* data = _tempPacket._payloads[0].get();
 					payload::payload<std::string_view>* realData =

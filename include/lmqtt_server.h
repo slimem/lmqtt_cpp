@@ -3,6 +3,7 @@
 #include "lmqtt_common.h"
 #include "lmqtt_tsqueue.h"
 #include "lmqtt_connection.h"
+#include "lmqtt_timer.h"
 
 namespace lmqtt {
 
@@ -15,7 +16,13 @@ public:
 			_context,
 			asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)
 		),
-		_port(port) {}
+		_port(port) {
+		_timer = std::make_shared<lmqtt_timer>(5000, [this] {
+			std::cout << "LOL IT IS WORKING";
+			//_timer->reset(3000);
+			}
+		);
+	}
 
 	virtual ~lmqtt_server() {
 		stop();
@@ -110,12 +117,19 @@ protected:
 		return true;
 	}
 
+	void client_timeout_handler(std::error_code ec) {
+		if (!ec) {
+			std::cout << "This timer for client has expired\n";
+		}
+	}
+
 protected:
 
 	// container for active connections
 	std::deque<std::shared_ptr<connection>> _activeSessions;
 
-
+	// timeout
+	std::shared_ptr<lmqtt_timer> _timer;
 
 	// for the server to actually run with asio
 	asio::io_context _context;
