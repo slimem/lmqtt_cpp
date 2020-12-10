@@ -5,6 +5,8 @@
 #include "lmqtt_connection.h"
 #include "lmqtt_timer.h"
 
+using namespace std::chrono_literals;
+
 namespace lmqtt {
 
 class lmqtt_server {
@@ -18,8 +20,18 @@ public:
 		),
 		_port(port) {
 		_timer = std::make_shared<lmqtt_timer>(5000, [this] {
-			std::cout << "LOL IT IS WORKING";
-			//_timer->reset(3000);
+				std::cout << "Calling function" << std::endl;
+				_timer->reset(_timer->get_time()/2);
+				_timer->count--;
+				if (_timer->count == 2) {
+					std::cout << "Trying to pause thread" << std::endl;
+					_timer->stop();
+					std::this_thread::sleep_for(2s);
+					std::cout << "Trying to resume thread" << std::endl;
+					_timer->reset(5000);
+					_timer->count = 5;
+					_timer->resume();
+				}
 			}
 		);
 	}
@@ -104,8 +116,10 @@ protected:
 		);
 	}
 	
+public:
 	// can be used to change how many messages can be processed at a time
 	void update(size_t maxMessages = -1) {
+		_messages.wait();
 	}
 
 protected:
@@ -127,6 +141,10 @@ protected:
 
 	// container for active connections
 	std::deque<std::shared_ptr<connection>> _activeSessions;
+
+	// container for messages to be treated
+	// for now, it is a queue of strings
+	ts_queue<std::string_view> _messages;
 
 	// timeout
 	std::shared_ptr<lmqtt_timer> _timer;

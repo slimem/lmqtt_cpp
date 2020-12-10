@@ -14,24 +14,47 @@ public:
     }
 
     void reset(size_t time) {
-        worker.join();
+        //worker.join();
         _time = std::chrono::milliseconds(time);
         //worker = [this]() { wait_for_call(); } };
     }
 
     void run() {
-        while (!exiting) {
+        while (!_exit) {
             std::unique_lock<std::mutex> lock(mtx);
             //cv.wait(lock, [this] {return has_work || exiting; });
-            cv.wait_for(lock, _time);
-            if (exiting) {
+            std::cout << "Thread " << worker.get_id() << " WAITING FOR " << std::chrono::duration_cast<std::chrono::milliseconds>(_time).count() << std::endl;
+            if (!_work) {
+                cv.wait(lock, [this] {return _work || _exit; });
+            } else {
+                cv.wait_for(lock, _time, [this] { return _exit; });
+            }
+            if (_exit) {
+                std::cout << "exiting from loop\n";
                 break;
             }
             _f();
-            has_work = false;
             lock.unlock();
             cv.notify_all();
         }
+        //std::cout << "joining thread\n";
+        //worker.join();
+    }
+
+    size_t get_time() const {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(_time).count();
+    }
+
+    void exit() {
+        _exit = true;
+    }
+
+    void resume() {
+        _work = true;
+    }
+
+    void stop() {
+        _work = false;
     }
 
 private:
@@ -44,8 +67,8 @@ private:
         _f();
     }
 
-    bool exiting = false;
-    bool has_work = true;
+    bool _exit = false;
+    bool _work = true;
 
     std::mutex mtx;
     std::condition_variable cv;
@@ -54,6 +77,8 @@ private:
 
     //std::thread worker{ [this]() { wait_for_call(); } };
     std::thread worker{ [this]() { run(); } };
+public:
+    int count = 5;
 
 };
 

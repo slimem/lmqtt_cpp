@@ -20,17 +20,8 @@
 #include <asio.hpp>
 #include <asio/ts/buffer.hpp>
 #include <asio/ts/internet.hpp>
-#include <asio/deadline_timer.hpp>
 
 // packet size limit 1 mo
 //#define PACKET_SIZE_LIMIT 1 << 20
 #define PACKET_SIZE_LIMIT 1 << 10 // 1 KO
 #define GENERATING_DOCUMENTATION
-
-
-/*namespace lmqtt {
-class connection {
-    [[nodiscard]] uint32_t get_id() const noexcept;
-};
-//class lmqtt_packet;
-}*/
