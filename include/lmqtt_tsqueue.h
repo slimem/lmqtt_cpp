@@ -43,6 +43,17 @@ namespace lmqtt {
 			_deq.pop_front();
 			return item;
 		}
+
+		// check if it's needed
+		/*T operator [](int i) const {
+			std::scoped_lock(_mxq);
+			return _deq[i];
+		}*/
+
+		T& operator [](int i) {
+			std::scoped_lock(_mxq);
+			return _deq[i];
+		}
 	
 		const T& back() {
 			std::scoped_lock(_mxq);

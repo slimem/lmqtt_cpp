@@ -140,7 +140,7 @@ protected:
 protected:
 
 	// container for active connections
-	std::deque<std::shared_ptr<connection>> _activeSessions;
+	ts_queue<std::shared_ptr<connection>> _activeSessions;
 
 	// container for messages to be treated
 	// for now, it is a queue of strings
