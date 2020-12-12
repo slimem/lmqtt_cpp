@@ -3,11 +3,14 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <deque>
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
 #include <array>
+
+using namespace std::chrono_literals;
 
 //for debugging
 #include <bitset>

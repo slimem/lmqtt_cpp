@@ -5,8 +5,6 @@
 #include "lmqtt_connection.h"
 #include "lmqtt_timer.h"
 
-using namespace std::chrono_literals;
-
 namespace lmqtt {
 
 class lmqtt_server {
@@ -19,7 +17,8 @@ public:
 			asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)
 		),
 		_port(port) {
-		_timer = std::make_shared<lmqtt_timer>(5000, [this] {
+		// will not use the timer for now
+		/*_timer = std::make_shared<lmqtt_timer>(5000, [this] {
 				std::cout << "Calling function" << std::endl;
 				_timer->reset(_timer->get_time()/2);
 				_timer->count--;
@@ -33,7 +32,7 @@ public:
 					_timer->resume();
 				}
 			}
-		);
+		);*/
 	}
 
 	virtual ~lmqtt_server() {
@@ -85,7 +84,9 @@ protected:
 					std::shared_ptr<connection> newConnection =
 						std::make_shared<connection>(
 							_context,
-							std::move(socket)
+							std::move(socket),
+							_activeSessions,
+							_deletionQueue
 						);
 
 					if (on_client_connection(newConnection)) {
@@ -119,7 +120,19 @@ protected:
 public:
 	// can be used to change how many messages can be processed at a time
 	void update(size_t maxMessages = -1) {
-		_messages.wait();
+
+		_deletionQueue.wait();
+		//_messages.wait();
+
+		if (!_deletionQueue.empty()) {
+			std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
+			//std::cout << "Detected deletion queue not empty\n";
+			auto connection = _deletionQueue.pop_front();
+			connection->shutdown();
+			_activeSessions.find_and_erase(connection);
+			//std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
+			//std::cout << "Deletion from queue took " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << " us\n";
+		}
 	}
 
 protected:
@@ -141,6 +154,9 @@ protected:
 
 	// container for active connections
 	ts_queue<std::shared_ptr<connection>> _activeSessions;
+
+	// container for connections scheduled for deletion
+	ts_queue<std::shared_ptr<connection>> _deletionQueue;
 
 	// container for messages to be treated
 	// for now, it is a queue of strings

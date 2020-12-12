@@ -3,6 +3,7 @@
 #include "lmqtt_common.h"
 #include "lmqtt_packet.h"
 #include "lmqtt_reason_codes.h"
+#include "lmqtt_timer.h"
 
 namespace lmqtt {
 
@@ -13,11 +14,33 @@ public:
 
 	connection(
 		asio::io_context& context,
-		asio::ip::tcp::socket socket
+		asio::ip::tcp::socket socket,
+		ts_queue<std::shared_ptr<connection>>& activeConnections, // all active connections
+		ts_queue<std::shared_ptr<connection>>& deletionQueue // connections scheduled for deletion
 	) :
-		_context(context), _socket(std::move(socket)) {}
+		_context(context),
+		_socket(std::move(socket)),
+		_activeConnections(activeConnections),
+		_deletionQueue(deletionQueue),
+		_connTimer(
+			std::unique_ptr<lmqtt_timer>(new lmqtt_timer(
+				3000,
+				[this]() {
+					if (!_receivedData) {
+						shutdown();
+						schedule_for_deletion();
+					}
+				})
+			)
+		)
+	{}
 
-	virtual ~connection() {}
+	virtual ~connection() {
+		//std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
+		std::cout << "[-------] Destroyed client object " << this << std::endl;
+		//std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
+		//std::cout << "Deletion Took " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << " us\n";
+	}
 
 public:
 	[[nodiscard]] uint32_t get_id() const noexcept {
@@ -45,6 +68,19 @@ public:
 		}
 	}
 
+	// close connection immediately without waiting for context.
+	// the socket should never outlive its context, so closing a socket before
+	// deleting the context is mendatory
+	void shutdown() {
+		if (is_connected()) {
+			std::error_code ec;
+			_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+			if (ec) {
+				std::cout << "Could not delete client, reason: " << ec.message() << std::endl;
+			}
+		}
+	}
+
 	bool is_connected() const noexcept {
 		return _socket.is_open();
 	};
@@ -60,6 +96,8 @@ private:
 			),
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
+
+					_receivedData = true;
 
 					// we identify the packet type
 					const reason_code rcode = _tempPacket.create_fixed_header();
@@ -154,6 +192,12 @@ private:
 					case packet_type::CONNECT:
 					{
 						rcode = _tempPacket.decode_connect_packet_body();
+						if (rcode != reason_code::SUCCESS) {
+							_socket.close();
+							schedule_for_deletion();
+							return;
+						}
+						configure_client();
 						break;
 					}
 					}
@@ -167,6 +211,7 @@ private:
 					std::cout << "[" << realData->get_data() << "] Connection Approved\n";*/
 
 					_socket.close();
+					schedule_for_deletion();
 					return;
 
 
@@ -211,6 +256,10 @@ private:
 		}
 	}
 
+	void schedule_for_deletion() {
+		_deletionQueue.push_back(shared_from_this());
+	}
+
 
 public:
 
@@ -222,6 +271,10 @@ public:
 		_clientId = clientId;
 	}
 
+	asio::ip::tcp::socket& socket() {
+		return _socket;
+	}
+
 protected:
 	// each connection has a unique socket
 	asio::ip::tcp::socket _socket;
@@ -229,15 +282,24 @@ protected:
 	// context
 	asio::io_context& _context;
 	
+	ts_queue<std::shared_ptr<connection>>& _activeConnections;
+	ts_queue<std::shared_ptr<connection>>& _deletionQueue;
+	
 	// connection ID
 	uint32_t _id = 0;
 
 	// on connect, we expect a connect packet
 	bool _isFirstPacket = true;
+	std::atomic<bool> _receivedData{false};
 
 	lmqtt_packet _tempPacket;
 
 	std::string_view _clientId;
+	uint32_t _sessionExpiryInterval = 0;
+	uint32_t _maximumPacketSize = 0;
+
+	std::unique_ptr<lmqtt_timer> _connTimer;
+
 };
 
 } // namespace lmqtt

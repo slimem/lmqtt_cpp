@@ -488,7 +488,6 @@ private:
     uint8_t _userNameFlag = 0;
     uint16_t _keepAlive = 0; // zero means infinite
 
-
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
 
 protected:

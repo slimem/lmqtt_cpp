@@ -42,7 +42,7 @@ public:
     }
 
     size_t get_time() const {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(_time).count();
+        return (size_t)std::chrono::duration_cast<std::chrono::milliseconds>(_time).count();
     }
 
     void exit() {
@@ -58,12 +58,14 @@ public:
     }
 
 private:
-    void wait_for_call() {
-        std::unique_lock<std::mutex> lck{ mtx };
-        for (int i{ 10 }; i > 0; --i) {
+    void run_once() {
+        /*for (int i{ 10 }; i > 0; --i) {
             std::cout << "Thread " << worker.get_id() << " countdown at: " << '\t' << i << '\n';
             cv.wait_for(lck, _time / 10);
-        }
+        }*/
+
+        std::unique_lock<std::mutex> ul{mtx};
+        cv.wait_for(ul, _time);
         _f();
     }
 
@@ -75,8 +77,8 @@ private:
     std::chrono::milliseconds _time;
     std::function<void(void)> _f;
 
-    //std::thread worker{ [this]() { wait_for_call(); } };
-    std::thread worker{ [this]() { run(); } };
+    std::thread worker{ [this]() { run_once(); } };
+    //std::thread worker{ [this]() { run(); } };
 public:
     int count = 5;
 

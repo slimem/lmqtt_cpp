@@ -32,7 +32,7 @@ namespace lmqtt {
 			// use emplace_ to avoid unnecessary copy
 			_deq.push_front(std::move(item));
 
-			std::unique_lock<std::mutex> lock(muxBlocking);
+			std::unique_lock<std::mutex> ul(muxBlocking);
 			cv.notify_one();
 		}
 	
@@ -64,7 +64,7 @@ namespace lmqtt {
 			std::scoped_lock lock(_mxq);
 			_deq.push_back(std::move(item));
 
-			std::unique_lock<std::mutex> lock(muxBlocking);
+			std::unique_lock<std::mutex> ul(muxBlocking);
 			cv.notify_one();
 		}
 	
@@ -90,9 +90,21 @@ namespace lmqtt {
 			_deq.clear();
 		}
 
+		void find_and_erase(const T& item) {
+			std::scoped_lock lock(_mxq);
+			auto it = std::find(
+				_deq.begin(),
+				_deq.end(),
+				item);
+
+			if (it != _deq.end()) {
+				_deq.erase(it);
+			}
+		}
+
 		void wait() {
 			while (empty()) {
-				std::unique_lock<std::mutex> ul(muxBlocking);
+				std::unique_lock<std::mutex> ul{ muxBlocking };
 				// waits without consuming cpu
 				cv.wait(ul);
 			}
