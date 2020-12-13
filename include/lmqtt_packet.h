@@ -6,6 +6,7 @@
 #include "lmqtt_properties.h"
 #include "lmqtt_payload.h"
 #include "lmqtt_utils.h"
+#include "lmqtt_client_config.h"
 
 namespace lmqtt {
 
@@ -151,41 +152,41 @@ class lmqtt_packet {
             // Extract the reset of the flags with bitmasking
             //TODO: Replace with bitfield in the future
             // bit 1 : Clean start
-            _cleanStart = (flags & 0x2) >> 1;
+            _clientCfg->_cleanStart = (flags & 0x2) >> 1;
 
             {
                 // bit 2 : Will Flag
-                _willFlag = (flags & 0x4) >> 2;
+                _clientCfg->_willFlag = (flags & 0x4) >> 2;
                 
-                if (_willFlag) {
+                if (_clientCfg->_willFlag) {
                     _payloadFlags[utils::to_underlying(payload::payload_type::WILL_PROPERTIES)] = payload::payload_type::WILL_PROPERTIES;
                     _payloadFlags[utils::to_underlying(payload::payload_type::WILL_TOPIC)]      = payload::payload_type::WILL_TOPIC;
                     _payloadFlags[utils::to_underlying(payload::payload_type::WILL_PAYLOAD)]    = payload::payload_type::WILL_PAYLOAD;
                     
                     // bit 3 and 4 : Will QoS
-                    _willQos = (flags & 0x18) >> 3;
+                    _clientCfg->_willQos = (flags & 0x18) >> 3;
                     
                     // check if willQos is valid
-                    if (_willQos == 0x3) {
+                    if (_clientCfg->_willQos == 0x3) {
                         return reason_code::MALFORMED_PACKET;
                     }
                 } else {
-                    _willQos = 0;
+                    _clientCfg->_willQos = 0;
                 }
 
                 // TODO: Use in the future
                 // bit 5 : Will retain
-                _willRetain = (flags & 0x20) >> 5;
+                _clientCfg->_willRetain = (flags & 0x20) >> 5;
             }
 
             // bit 6 : Password Flag
-            _passwordFlag = (flags & 0x40) >> 6;
-            if (_passwordFlag) {
+            _clientCfg->_passwordFlag = (flags & 0x40) >> 6;
+            if (_clientCfg->_passwordFlag) {
                 _payloadFlags[utils::to_underlying(payload::payload_type::PASSWORD)] = payload::payload_type::PASSWORD;
             }
             // bit 7 : User name flag
-            _userNameFlag = (flags & 0x80) >> 7;
-            if (_userNameFlag) {
+            _clientCfg->_userNameFlag = (flags & 0x80) >> 7;
+            if (_clientCfg->_userNameFlag) {
                 _payloadFlags[utils::to_underlying(payload::payload_type::USER_NAME)] = payload::payload_type::USER_NAME;
             }
         }
@@ -194,7 +195,7 @@ class lmqtt_packet {
             // byte 8 and 9 : Keep alive MSB and LSB
             const uint8_t keepAliveSize = 2;
             const uint8_t keepAliveOffset = 8;
-            _keepAlive = (*(ptr + keepAliveOffset) << 8) | *(ptr + keepAliveOffset + 1);
+            _clientCfg->_keepAlive = (*(ptr + keepAliveOffset) << 8) | *(ptr + keepAliveOffset + 1);
         }
 
         // check if body size can hold a maximum variable length int (base + 3)
@@ -302,6 +303,8 @@ class lmqtt_packet {
                     static_cast<property::property_data<std::pair<std::string_view, std::string_view>>*>(data);
                 //std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
             }
+
+
 
             _propertyTypes.emplace_back(std::move(propertyDataPtr));
 
@@ -425,12 +428,6 @@ public:
         return lmqttPacket;
     }
 
-public:
-    // connect packet attributes
-    [[nodiscard]] constexpr bool is_clean_start() {
-        return _cleanStart;
-    }
-
 protected:
     const std::string_view get_type_string() const noexcept {
         switch (_type) {
@@ -460,7 +457,7 @@ protected:
         switch (_type) {
         case packet_type::CONNECT:          return false;
         case packet_type::CONNACK:          return false;
-        case packet_type::PUBLISH:          return _qos > 0 ? true : false; // true of QoS > 0
+        case packet_type::PUBLISH:          return _clientCfg->_qos > 0 ? true : false; // true of QoS > 0
         case packet_type::PUBACK:           return true;
         case packet_type::PUBREC:           return true;
         case packet_type::PUBREL:           return true;
@@ -478,6 +475,9 @@ protected:
         return false; // keep the compiler happy
     }
 private:
+
+    std::shared_ptr<client_config> _clientCfg;
+    /*
     uint8_t _qos = 0;
     
     uint8_t _cleanStart = 0;
@@ -487,6 +487,7 @@ private:
     uint8_t _passwordFlag = 0;
     uint8_t _userNameFlag = 0;
     uint16_t _keepAlive = 0; // zero means infinite
+    */
 
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
 

@@ -4,6 +4,7 @@
 #include "lmqtt_packet.h"
 #include "lmqtt_reason_codes.h"
 #include "lmqtt_timer.h"
+#include "lmqtt_client_config.h"
 
 namespace lmqtt {
 
@@ -22,9 +23,10 @@ public:
 		_socket(std::move(socket)),
 		_activeConnections(activeConnections),
 		_deletionQueue(deletionQueue),
+		_clientCfg(std::make_shared<client_config>()),
 		_connTimer(
 			std::unique_ptr<lmqtt_timer>(new lmqtt_timer(
-				3000,
+				3000, // 3 seconds connection timeout if no data has been sent
 				[this]() {
 					if (!_receivedData) {
 						shutdown();
@@ -33,7 +35,10 @@ public:
 				})
 			)
 		)
-	{}
+	{
+		_inPacket._clientCfg = _clientCfg;
+		_outPacket._clientCfg = _clientCfg;
+	}
 
 	virtual ~connection() {
 		//std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
@@ -91,7 +96,7 @@ private:
 		asio::async_read(
 			_socket,
 			asio::buffer(
-				&_tempPacket._header._controlField,
+				&_inPacket._header._controlField,
 				sizeof(uint8_t)
 			),
 			[this](std::error_code ec, size_t length) {
@@ -100,7 +105,7 @@ private:
 					_receivedData = true;
 
 					// we identify the packet type
-					const reason_code rcode = _tempPacket.create_fixed_header();
+					const reason_code rcode = _inPacket.create_fixed_header();
 
 					if (rcode == reason_code::MALFORMED_PACKET
 						|| rcode == reason_code::PROTOCOL_ERROR) {
@@ -109,7 +114,7 @@ private:
 
 					// on first connection, only accept CONNECT packets
 					if (_isFirstPacket) {
-						if (_tempPacket._type != packet_type::CONNECT) {
+						if (_inPacket._type != packet_type::CONNECT) {
 							_socket.close();
 							return;
 						}
@@ -126,7 +131,7 @@ private:
 					reason_code rCode = reason_code::SUCCESS;
 					for (uint32_t offset = 0; offset < 4; ++offset) {
 						uint8_t nextByte = read_byte();
-						_tempPacket._header._packetLen += (nextByte & 0x7f) * mul;
+						_inPacket._header._packetLen += (nextByte & 0x7f) * mul;
 						if (mul > 0x200000) { // 128 * 128 * 128
 							rCode = reason_code::MALFORMED_PACKET;
 						}
@@ -140,14 +145,14 @@ private:
 					}
 
 					// only allow packets with a certain size
-					if (_tempPacket._header._packetLen > PACKET_SIZE_LIMIT) {
+					if (_inPacket._header._packetLen > PACKET_SIZE_LIMIT) {
 						std::cout << "[" << _id << "] Closed connection. Reason: Packet size limit exceeded\n";
 						_socket.close();
 						return;
 					}
 
 					// resize packet body to hold the rest of the data
-					_tempPacket._body.resize(_tempPacket._header._packetLen);
+					_inPacket._body.resize(_inPacket._header._packetLen);
 					
 					read_packet_body();
 
@@ -181,17 +186,17 @@ private:
 		asio::async_read(
 			_socket,
 			asio::buffer(
-				_tempPacket._body.data(),
-				_tempPacket._body.size()
+				_inPacket._body.data(),
+				_inPacket._body.size()
 			),
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
 
 					reason_code rcode;
-					switch (_tempPacket._type) {
+					switch (_inPacket._type) {
 					case packet_type::CONNECT:
 					{
-						rcode = _tempPacket.decode_connect_packet_body();
+						rcode = _inPacket.decode_connect_packet_body();
 						if (rcode != reason_code::SUCCESS) {
 							_socket.close();
 							schedule_for_deletion();
@@ -204,7 +209,7 @@ private:
 
 					//read_packet();
 
-					/*payload::payload_proxy* data = _tempPacket._payloads[0].get();
+					/*payload::payload_proxy* data = _inPacket._payloads[0].get();
 					payload::payload<std::string_view>* realData =
 						static_cast<payload::payload<std::string_view>*>(data);
 
@@ -215,7 +220,7 @@ private:
 					return;
 
 
-					/*if (_tempPacket.decode_packet_body() != reason_code::SUCCESS) {
+					/*if (_inPacket.decode_packet_body() != reason_code::SUCCESS) {
 						// According to packet type, we create our ACK packet to be sent to the client
 
 						_socket.close();
@@ -233,10 +238,11 @@ private:
 
 	void read_packet() {
 
-		switch (_tempPacket._type) {
+		switch (_inPacket._type) {
 		case packet_type::CONNECT:
 		{
 			configure_client();
+
 			break;
 		}
 
@@ -247,9 +253,9 @@ private:
 	}
 
 	void configure_client() {
-		for (uint8_t i = 0; i < _tempPacket._payloads.size(); ++i) {
+		for (uint8_t i = 0; i < _inPacket._payloads.size(); ++i) {
 
-			auto ptype = _tempPacket._payloads[i]->get_payload_type();
+			auto ptype = _inPacket._payloads[i]->get_payload_type();
 
 
 
@@ -265,10 +271,6 @@ public:
 
 	std::string get_remote_endpoint() const {
 		return _socket.remote_endpoint().address().to_string();
-	}
-
-	void set_client_id(const std::string_view& clientId) {
-		_clientId = clientId;
 	}
 
 	asio::ip::tcp::socket& socket() {
@@ -292,13 +294,12 @@ protected:
 	bool _isFirstPacket = true;
 	std::atomic<bool> _receivedData{false};
 
-	lmqtt_packet _tempPacket;
-
-	std::string_view _clientId;
-	uint32_t _sessionExpiryInterval = 0;
-	uint32_t _maximumPacketSize = 0;
+	lmqtt_packet _inPacket;
+	lmqtt_packet _outPacket;
 
 	std::unique_ptr<lmqtt_timer> _connTimer;
+
+	std::shared_ptr<client_config> _clientCfg;
 
 };
 
