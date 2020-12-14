@@ -22,7 +22,7 @@ enum class reason_code : uint8_t {
 
 enum class [[nodiscard]] return_code : uint8_t {
     OK      = 0,
-    FAIL    = 1 
+    FAIL    = 1
 };
 
 } // namespace lmqtt

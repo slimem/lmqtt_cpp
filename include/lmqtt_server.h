@@ -105,6 +105,7 @@ protected:
 
 					} else {
 						std::cout << "[SERVER] Connection to " << newConnection->get_remote_endpoint() << " Denied. Reason: Reached maximum number of allowed connections\n";
+						_deletionQueue.push_back(newConnection);
 					}
 
 				} else {

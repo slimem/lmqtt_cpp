@@ -28,17 +28,30 @@ private:
 template <typename T>
 class property_data : public property_data_proxy {
 public:
-    property_data(property_type type, T& data) : property_data_proxy(type), _data(data) {}
+    property_data(property_type type, T& data, data_type dtype = data_type::UNKNOWN)
+        : property_data_proxy(type), _data(data), _dataType(dtype) {}
     property_data() = default;
     ~property_data() = default;
     const T& get_data() const noexcept {
         return _data;
     }
+
+    constexpr data_type get_data_type() const {
+        return _dataType;
+    }
     void set_data(T& data) noexcept {
         _data = data;
     }
+
+    [[nodiscard]] return_code check_data_type(property_type ptype) {
+        if (types_utils::get_property_data_type(ptype) != _dataType) {
+            return return_code::FAIL;
+        }
+        return return_code::OK;
+    }
 private:
     T _data;
+    data_type _dataType;
 };
 
 // Small data (data smaller than uint32_t is copied, big data (buffers, strings)
@@ -66,7 +79,7 @@ get_property_data(
         }
         uint8_t data = buff[0];
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<uint8_t>(ptype, data)
+            new property_data<uint8_t>(ptype, data, data_type::BYTE)
         );
         propertySize = 1;
         return propertyData;
@@ -79,7 +92,7 @@ get_property_data(
         }
         uint16_t data = (buff[0] << 0x8) | buff[1];
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<uint16_t>(ptype, data)
+            new property_data<uint16_t>(ptype, data, data_type::TWO_BYTES_INT)
         );
         propertySize = 2;
         return propertyData;
@@ -97,7 +110,7 @@ get_property_data(
             buff[3];
         propertySize = 4;
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<uint32_t>(ptype, data)
+            new property_data<uint32_t>(ptype, data, data_type::FOUR_BYTES_INT)
         );
         return propertyData;
     }
@@ -130,7 +143,7 @@ get_property_data(
         }
         propertySize = offset;
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<std::string_view>(ptype, str)
+            new property_data<std::string_view>(ptype, str, data_type::UTF8_STRING)
         );
         return propertyData;
     }
@@ -183,7 +196,11 @@ get_property_data(
         // the next property will be parsed from the new position
         propertySize = offset;
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<std::pair<std::string_view, std::string_view>>(ptype, strPair)
+            new property_data<std::pair<std::string_view, std::string_view>>(
+                ptype,
+                strPair,
+                data_type::UTF8_STRING_PAIR
+                )
         );
         return propertyData;
     }
@@ -206,7 +223,7 @@ get_property_data(
         std::vector<uint8_t> data;
         data.assign(buff + 2, buff + 2 + dataLen);
         std::unique_ptr<property_data_proxy> propertyData(
-            new property_data<std::vector<uint8_t>>(ptype, data)
+            new property_data<std::vector<uint8_t>>(ptype, data, data_type::BINARY)
         );
         propertySize = dataLen + 2;
         return propertyData;

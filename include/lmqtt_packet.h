@@ -304,9 +304,11 @@ class lmqtt_packet {
                 //std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
             }
 
-
-
-            _propertyTypes.emplace_back(std::move(propertyDataPtr));
+            reason_code rcode = _clientCfg->configure_propriety(std::move(propertyDataPtr));
+            if (rcode != reason_code::SUCCESS) {
+                return rcode;
+            }
+            //_propertyTypes.emplace_back(std::move(propertyDataPtr));
 
             // prepare the buffer pointer for the next property position
             buff += propertySize;
@@ -386,7 +388,7 @@ class lmqtt_packet {
                     //std::cout << "CLIENT_ID : " << realData->get_data() << std::endl;
                 }
                 
-                _payloads.emplace_back(std::move(payloadDataPtr));
+                //_payloads.emplace_back(std::move(payloadDataPtr));
             }
         }
 
@@ -492,8 +494,8 @@ private:
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
 
 protected:
-    std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
-    std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
+    //std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
+    //std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
 
     // order is important and the maximum number of payloads is known so use a container
     // at compile time

@@ -253,13 +253,13 @@ private:
 	}
 
 	void configure_client() {
-		for (uint8_t i = 0; i < _inPacket._payloads.size(); ++i) {
+	/*	for (uint8_t i = 0; i < _inPacket._payloads.size(); ++i) {
 
 			auto ptype = _inPacket._payloads[i]->get_payload_type();
 
 
 
-		}
+		}*/
 	}
 
 	void schedule_for_deletion() {
