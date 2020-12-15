@@ -28,17 +28,33 @@ private:
 template <typename T>
 class payload : public payload_proxy {
 public:
-    payload(payload_type type, T& data) : payload_proxy(type), _data(data) {}
+    payload(payload_type type, T& data, data_type dtype = data_type::UNKNOWN)
+        : payload_proxy(type), _data(data), _dataType(dtype) {}
     payload() = default;
     ~payload() = default;
-    const T& get_data() const noexcept {
+
+    T& get_data() noexcept {
         return _data;
     }
+
+    constexpr data_type get_data_type() const {
+        return _dataType;
+    }
+
     void set_data(T& data) noexcept {
         _data = data;
     }
+
+    [[nodiscard]] return_code check_data_type(payload_type ptype) {
+        if (types_utils::get_payload_data_type(ptype) != _dataType) {
+            return return_code::FAIL;
+        }
+        return return_code::OK;
+    }
+
 private:
     T _data;
+    data_type _dataType;
 };
 
 // Small data (data smaller than uint32_t is copied, big data (buffers, strings)

@@ -99,7 +99,7 @@ protected:
 
 						_activeSessions.push_back(std::move(newConnection));
 
-						_activeSessions.back()->connect_to_client(_idCounter++);
+						_activeSessions.back()->connect_to_client(100);
 
 						std::cout << "[" << _activeSessions.back()->get_remote_endpoint() << "] Connection Accepted, waiting for identification..\n";
 
@@ -139,7 +139,7 @@ public:
 protected:
 
 	bool on_client_connection(std::shared_ptr<connection> connection) {
-		if (_activeSessions.size() > 5) {
+		if (_activeSessions.size() > 1) {
 			return false;
 		}
 		return true;

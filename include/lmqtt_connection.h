@@ -24,17 +24,7 @@ public:
 		_activeConnections(activeConnections),
 		_deletionQueue(deletionQueue),
 		_clientCfg(std::make_shared<client_config>()),
-		_connTimer(
-			std::unique_ptr<lmqtt_timer>(new lmqtt_timer(
-				3000, // 3 seconds connection timeout if no data has been sent
-				[this]() {
-					if (!_receivedData) {
-						shutdown();
-						schedule_for_deletion();
-					}
-				})
-			)
-		)
+		_connTimer(nullptr)
 	{
 		_inPacket._clientCfg = _clientCfg;
 		_outPacket._clientCfg = _clientCfg;
@@ -52,10 +42,19 @@ public:
 		return _id;
 	}
 
-	void connect_to_client(uint32_t id = 0) noexcept {
+	void connect_to_client(size_t timeout) noexcept {
 		if (_socket.is_open()) {
 			//_id = id;
-
+			_connTimer = std::unique_ptr<lmqtt_timer>(new lmqtt_timer(
+				timeout,
+				[this]() {
+					if (!_receivedData) {
+						shutdown();
+						schedule_for_deletion();
+					}
+				}
+			));
+				
 			// read availabe messages
 			read_fixed_header();
 		}

@@ -237,7 +237,7 @@ class lmqtt_packet {
         return reason_code::SUCCESS;
     }
 
-    const reason_code decode_properties(uint32_t start, uint32_t size) {
+    const reason_code decode_properties(uint32_t start, uint32_t size, bool isWillProperties = false) {
         // first, check if the _body can hold this data
         if (_body.size() < (start + size)) {
             return reason_code::MALFORMED_PACKET;
@@ -304,7 +304,12 @@ class lmqtt_packet {
                 //std::cout << realData->get_data().first << " : " << realData->get_data().second << std::endl;
             }
 
-            reason_code rcode = _clientCfg->configure_propriety(std::move(propertyDataPtr));
+            reason_code rcode;
+            if (isWillProperties) {
+                //rcode = _clientCfg->configure_will_propriety(std::move(propertyDataPtr));
+            } else {
+                rcode = _clientCfg->configure_propriety(std::move(propertyDataPtr));
+            }
             if (rcode != reason_code::SUCCESS) {
                 return rcode;
             }
@@ -357,7 +362,7 @@ class lmqtt_packet {
 
                 buff += varSize;
                 reason_code rCode;
-                rCode = decode_properties(buff - _body.data(), willPropertyLength);
+                rCode = decode_properties(buff - _body.data(), willPropertyLength, true);
                 if (rCode != reason_code::SUCCESS) {
                     return rCode;
                 }
@@ -388,6 +393,10 @@ class lmqtt_packet {
                     //std::cout << "CLIENT_ID : " << realData->get_data() << std::endl;
                 }
                 
+                reason_code rcode = _clientCfg->configure_payload(std::move(payloadDataPtr));
+                if (rcode != reason_code::SUCCESS) {
+                    return rcode;
+                }
                 //_payloads.emplace_back(std::move(payloadDataPtr));
             }
         }
@@ -494,7 +503,6 @@ private:
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
 
 protected:
-    //std::vector<std::unique_ptr<property::property_data_proxy>> _propertyTypes;
     //std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
 
     // order is important and the maximum number of payloads is known so use a container

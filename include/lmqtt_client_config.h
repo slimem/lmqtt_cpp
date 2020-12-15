@@ -3,6 +3,7 @@
 #include "lmqtt_common.h"
 #include "lmqtt_types.h"
 #include "lmqtt_properties.h"
+#include "lmqtt_will_config.h"
 
 namespace lmqtt {
 
@@ -138,8 +139,29 @@ public:
 		return reason_code::SUCCESS;
 	}
 
+	[[nodiscard]] reason_code configure_payload(std::unique_ptr<payload::payload_proxy>&& payload) {
+
+		switch (payload->get_payload_type()) {
+		case payload::payload_type::CLIENT_ID:
+		{
+			payload::payload<std::string_view>* realData =
+				static_cast<payload::payload<std::string_view>*>(payload.get());
+			if (realData->check_data_type(payload::payload_type::CLIENT_ID) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_clientId = realData->get_data();
+			break;
+		}
+		default:
+		{
+			// never reached
+			return reason_code::PROTOCOL_ERROR;
+		}
+		}
+		return reason_code::SUCCESS;
+	}
+
 private:
-    std::string _clientId;
 
 	// client properties in this order
 	uint32_t _sessionExpiryInterval = 0;
@@ -152,6 +174,8 @@ private:
 	std::string _authMethod;
 	std::vector<uint8_t> _authData;
 
+    std::string _clientId;
+
 	uint8_t _qos = 0;
 	uint8_t _cleanStart = 0;
 	uint8_t _willFlag = 0;
@@ -160,6 +184,8 @@ private:
 	uint8_t _passwordFlag = 0;
 	uint8_t _userNameFlag = 0;
 	uint16_t _keepAlive = 0; // zero means infinite
+
+	std::unique_ptr<will_config> _willCfg{ nullptr };
 };
 
 } // namespace lmqtt

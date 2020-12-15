@@ -32,7 +32,7 @@ public:
         : property_data_proxy(type), _data(data), _dataType(dtype) {}
     property_data() = default;
     ~property_data() = default;
-    const T& get_data() const noexcept {
+    T& get_data() noexcept {
         return _data;
     }
 
