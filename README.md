@@ -10,6 +10,27 @@ I chose to use **non-boost asio** because it will be supported in c++ standard.
 The server now parses CONNECT packets. In the near future, the server will be able to accept a connection and send pack an ACK packet.
 The server will only accept packets with a payload size no more than 1 MB.
 
+The lmqtt packet is implemented as follows (in lmqtt_packet.h)
+```cpp
+class lmqtt_packet {
+    fixed_header _header {};
+    std::vector<uint8_t> _body;
+```
+At connection, the packet parsing is done in two steps: First, the fixed header is read and parsed, then the body.
+In lmqtt_connection.h:
+```cpp
+void read_fixed_header() {
+	asio::async_read(
+		_socket,
+		asio::buffer(
+			&_inPacket._header._controlField,
+			sizeof(uint8_t)
+		),
+		[this](std::error_code ec, size_t length) {
+			if (!ec) {
+				_receivedData = true;
+```
+
 The next step is to impelement a thread-safe priority queue that handles timeouts (keep alive/ session expiration) for sessions.
 
 To compile and run the server, non-boost asio (header only) must be linked.
