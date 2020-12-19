@@ -170,6 +170,9 @@ class lmqtt_packet {
                     if (_clientCfg->_willQos == 0x3) {
                         return reason_code::MALFORMED_PACKET;
                     }
+                    // init the will config unique ptr. In the future, if the will ptr is still null,
+                    // it is a malformted packet
+                    _clientCfg->init_will_cfg();
                 } else {
                     _clientCfg->_willQos = 0;
                 }
@@ -306,7 +309,7 @@ class lmqtt_packet {
 
             reason_code rcode;
             if (isWillProperties) {
-                //rcode = _clientCfg->configure_will_propriety(std::move(propertyDataPtr));
+                rcode = _clientCfg->configure_will_propriety(std::move(propertyDataPtr));
             } else {
                 rcode = _clientCfg->configure_propriety(std::move(propertyDataPtr));
             }

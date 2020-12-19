@@ -161,6 +161,65 @@ public:
 		return reason_code::SUCCESS;
 	}
 
+	void init_will_cfg() noexcept {
+		_willCfg = std::unique_ptr<will_config>(new will_config);
+	}
+
+	[[nodiscard]] reason_code configure_will_propriety(std::unique_ptr<property::property_data_proxy>&& property) {
+
+		if (!_willCfg) {
+			// this shouldnt happen, unless if the will flag is not set but there's a will payload
+			return reason_code::MALFORMED_PACKET;
+		}
+
+		switch (property->get_property_type()) {
+		case property::property_type::WILL_DELAY_INTERVAL:
+		{
+			property::property_data<uint32_t>* realData =
+				static_cast<property::property_data<uint32_t>*>(property.get());
+			if (realData->check_data_type(property::property_type::WILL_DELAY_INTERVAL) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_willDelayInterval = realData->get_data();
+			break;
+		}
+		case property::property_type::PAYLOAD_FORMAT_INDICATOR:
+		{
+			property::property_data<uint8_t>* realData =
+				static_cast<property::property_data<uint8_t>*>(property.get());
+			if (realData->check_data_type(property::property_type::PAYLOAD_FORMAT_INDICATOR) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_payloadFormatIndicator = realData->get_data();
+			if (_willCfg->_payloadFormatIndicator > 1) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			break;
+		}
+		case property::property_type::MESSAGE_EXPIRY_INTERVAL:
+		{
+			property::property_data<uint32_t>* realData =
+				static_cast<property::property_data<uint32_t>*>(property.get());
+			if (realData->check_data_type(property::property_type::MESSAGE_EXPIRY_INTERVAL) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_messageExpiryInterval = realData->get_data();
+			break;
+		}
+		case property::property_type::CONTENT_TYPE:
+		{
+			property::property_data<std::string_view>* realData =
+				static_cast<property::property_data<std::string_view>*>(property.get());
+			if (realData->check_data_type(property::property_type::CONTENT_TYPE) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_contentType = realData->get_data();
+			break;
+		}
+		}
+		return reason_code::SUCCESS;
+	}
+
 private:
 
 	// client properties in this order
