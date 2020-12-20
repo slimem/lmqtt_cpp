@@ -20,6 +20,11 @@ private:
 	uint8_t _payloadFormatIndicator = 0;
 	uint32_t _messageExpiryInterval = 0;
 	std::string _contentType;
+	std::string _responseTopic;
+	std::vector<uint8_t> _correlationData;
+	std::vector<std::pair<const std::string, const std::string>> _userProprieties;
+	std::string _topic;
+	std::vector<uint8_t> _willPayload; // to be published with the will topic
 };
 
 } // namespace lmqtt

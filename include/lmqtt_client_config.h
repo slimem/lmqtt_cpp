@@ -152,6 +152,58 @@ public:
 			_clientId = realData->get_data();
 			break;
 		}
+		case payload::payload_type::WILL_TOPIC:
+		{
+			if (_willFlag != 1) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			payload::payload<std::string_view>* realData =
+				static_cast<payload::payload<std::string_view>*>(payload.get());
+			if (realData->check_data_type(payload::payload_type::WILL_TOPIC) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_topic = realData->get_data();
+			break;
+		}
+		case payload::payload_type::WILL_PAYLOAD:
+		{
+			if (_willFlag != 1) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			payload::payload<std::vector<uint8_t>>* realData =
+				static_cast<payload::payload<std::vector<uint8_t>>*>(payload.get());
+			if (realData->check_data_type(payload::payload_type::WILL_PAYLOAD) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_willPayload = std::move(realData->get_data());
+			break;
+		}
+		case payload::payload_type::USER_NAME:
+		{
+			if (_userNameFlag != 1) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			payload::payload<std::string_view>* realData =
+				static_cast<payload::payload<std::string_view>*>(payload.get());
+			if (realData->check_data_type(payload::payload_type::USER_NAME) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_userName = realData->get_data();
+			break;
+		}
+		case payload::payload_type::PASSWORD:
+		{
+			if (_willFlag != 1) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			payload::payload<std::vector<uint8_t>>* realData =
+				static_cast<payload::payload<std::vector<uint8_t>>*>(payload.get());
+			if (realData->check_data_type(payload::payload_type::PASSWORD) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_password = std::move(realData->get_data());
+			break;
+		}
 		default:
 		{
 			// never reached
@@ -216,6 +268,42 @@ public:
 			_willCfg->_contentType = realData->get_data();
 			break;
 		}
+		case property::property_type::RESPONSE_TOPIC:
+		{
+			property::property_data<std::string_view>* realData =
+				static_cast<property::property_data<std::string_view>*>(property.get());
+			if (realData->check_data_type(property::property_type::RESPONSE_TOPIC) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_responseTopic = realData->get_data();
+			break;
+		}
+		case property::property_type::CORRELATION_DATA:
+		{
+			property::property_data<std::vector<uint8_t>>* realData =
+				static_cast<property::property_data<std::vector<uint8_t>>*>(property.get());
+			if (realData->check_data_type(property::property_type::CORRELATION_DATA) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			_willCfg->_correlationData = std::move(realData->get_data());
+			break;
+		}
+		case property::property_type::USER_PROPERTY:
+		{
+			property::property_data<std::pair<std::string_view, std::string_view>>* realData =
+				static_cast<property::property_data<std::pair<std::string_view, std::string_view>>*>(property.get());
+			if (realData->check_data_type(property::property_type::USER_PROPERTY) != return_code::OK) {
+				return reason_code::PROTOCOL_ERROR;
+			}
+			auto properties = realData->get_data();
+			_willCfg->_userProprieties.emplace_back(std::make_pair(properties.first, properties.second));
+			break;
+		}
+		default:
+		{
+			// never reached
+			return reason_code::PROTOCOL_ERROR;
+		}
 		}
 		return reason_code::SUCCESS;
 	}
@@ -232,6 +320,8 @@ private:
 	std::vector<std::pair<const std::string, const std::string>> _userProprieties;
 	std::string _authMethod;
 	std::vector<uint8_t> _authData;
+	std::string _userName;
+	std::vector<uint8_t> _password;
 
     std::string _clientId;
 
