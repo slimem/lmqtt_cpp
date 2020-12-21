@@ -400,7 +400,6 @@ class lmqtt_packet {
                 if (rcode != reason_code::SUCCESS) {
                     return rcode;
                 }
-                //_payloads.emplace_back(std::move(payloadDataPtr));
             }
         }
 
@@ -491,22 +490,10 @@ protected:
 private:
 
     std::shared_ptr<client_config> _clientCfg;
-    /*
-    uint8_t _qos = 0;
-    
-    uint8_t _cleanStart = 0;
-    uint8_t _willFlag = 0;
-    uint8_t _willQos = 0;
-    uint8_t _willRetain = 0;
-    uint8_t _passwordFlag = 0;
-    uint8_t _userNameFlag = 0;
-    uint16_t _keepAlive = 0; // zero means infinite
-    */
 
     uint8_t _varIntBuff[4]; // a buffer to decode variable int
 
 protected:
-    //std::vector<std::unique_ptr<payload::payload_proxy>> _payloads;
 
     // order is important and the maximum number of payloads is known so use a container
     // at compile time
@@ -518,8 +505,6 @@ protected:
         payload::payload_type::UNKNOWN,
         payload::payload_type::UNKNOWN
     };
-    // maybe use a std::variant in the future
-    //std::unordered_map <property::property_type, std::variant<std::string, uint16_t, uint32_t, std::vector<uint8_t>>> _propertyData;
 };
 
 } // namespace lmqtt
