@@ -100,7 +100,7 @@ get_payload(
 
         payloadSize = offset;
         std::unique_ptr<payload_proxy> payloadData(
-            new payload<std::string_view>(ptype, str)
+            new payload<std::string_view>(ptype, str, data_type::UTF8_STRING_ALPHA_NUM)
         );
         return payloadData;
     }
@@ -123,7 +123,7 @@ get_payload(
         std::vector<uint8_t> data;
         data.assign(buff + 2, buff + 2 + dataLen);
         std::unique_ptr<payload_proxy> payloadData(
-            new payload<std::vector<uint8_t>>(ptype, data)
+            new payload<std::vector<uint8_t>>(ptype, data, data_type::BINARY)
         );
 
         payloadSize = dataLen + 2;
