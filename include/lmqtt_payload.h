@@ -46,7 +46,7 @@ public:
     }
 
     [[nodiscard]] return_code check_data_type(payload_type ptype) {
-        if (types_utils::get_payload_data_type(ptype) != _dataType) {
+        if (payload_utils::get_payload_data_type(ptype) != _dataType) {
             return return_code::FAIL;
         }
         return return_code::OK;

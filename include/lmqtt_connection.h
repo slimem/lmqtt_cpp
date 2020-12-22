@@ -201,6 +201,7 @@ private:
 							schedule_for_deletion();
 							return;
 						}
+						std::cout << "[SESSION] Identified client " << _clientCfg->_clientId << std::endl;
 						configure_client();
 						break;
 					}

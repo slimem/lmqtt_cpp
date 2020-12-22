@@ -9,6 +9,7 @@ namespace lmqtt {
 
 class client_config : public std::enable_shared_from_this<client_config> {
 	friend class lmqtt_packet;
+	friend class connection;
 public:
 	client_config() = default;
 	~client_config() {
