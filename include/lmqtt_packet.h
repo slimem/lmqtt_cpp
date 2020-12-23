@@ -19,6 +19,10 @@ struct fixed_header {
         else if (_packetLen >= 0x80) return 3; // control flield + 2 bytes
         else return 2;
     }
+    constexpr void reset() noexcept {
+        _controlField = 0;
+        _packetLen = 0;
+    }
 };
 
 /*
@@ -30,10 +34,15 @@ class lmqtt_packet {
     friend class connection;
 
     fixed_header _header {};
-    //std::vector<uint8_t> _varHeader {};
-    //std::vector<uint8_t> _pyload {};
     std::vector<uint8_t> _body;
     packet_type _type = packet_type::UNKNOWN;
+
+    void reset() noexcept {
+        _header.reset();
+        _type = packet_type::UNKNOWN;
+        std::memset(_body.data(), 0, _body.size());
+        std::memset(_varIntBuff, 0, 4);
+    }
     
     [[nodiscard]] const reason_code create_fixed_header() noexcept {
         uint8_t ptype = _header._controlField >> 4;
@@ -235,7 +244,7 @@ class lmqtt_packet {
         //std::chrono::system_clock::time_point timeThen;
         //msg >> timeThen;
         //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
-        std::cout << "FINISHED PARSING PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
+        std::cout << "[DEBUG] -- FINISHED PARSING PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
 
         return reason_code::SUCCESS;
     }
@@ -418,27 +427,21 @@ public:
 
 public:
     
-    static std::unique_ptr<lmqtt_packet> create_packet(
+    [[nodiscard]] return_code create_packet(
         packet_type packetType,
         reason_code reasonCode
     ) {
         if (!packet::utils::is_server_packet(packetType)) {
-            return std::unique_ptr<lmqtt_packet>{};
+            return return_code::FAIL;
         }
 
-        // create empty packet
-        std::unique_ptr<lmqtt_packet> lmqttPacket(
-            new lmqtt_packet()
-        );
+        
+        _header._controlField =
+            static_cast<uint8_t>(packetType);
 
-        // create fixed header
-        // TODO
-        lmqttPacket->_header._controlField =
-            static_cast<uint8_t>(packet_flag::CONNACK);
-        /*std::unique_ptr<payload_proxy> payloadData(
-            new payload<std::string_view>(ptype, str)
-        );*/
-        return lmqttPacket;
+        uint32_t packetSize = 0; // to be computed
+
+        return return_code::OK;
     }
 
 protected:

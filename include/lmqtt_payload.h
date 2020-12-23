@@ -100,7 +100,7 @@ get_payload(
 
         payloadSize = offset;
         std::unique_ptr<payload_proxy> payloadData(
-            new payload<std::string_view>(ptype, str, data_type::UTF8_STRING_ALPHA_NUM)
+            new payload<std::string_view>(ptype, str, (isAlphaNumStr)? data_type::UTF8_STRING_ALPHA_NUM : data_type::UTF8_STRING)
         );
         return payloadData;
     }

@@ -202,6 +202,7 @@ private:
 							return;
 						}
 						std::cout << "[SESSION] Identified client " << _clientCfg->_clientId << std::endl;
+						_inPacket.reset();
 						configure_client();
 						break;
 					}
