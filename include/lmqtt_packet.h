@@ -427,7 +427,7 @@ public:
 
 public:
     
-    [[nodiscard]] return_code create_packet(
+    [[nodiscard]] return_code create_connack_packet(
         packet_type packetType,
         reason_code reasonCode
     ) {
@@ -435,13 +435,35 @@ public:
             return return_code::FAIL;
         }
 
-        
+        // create fixed header
         _header._controlField =
-            static_cast<uint8_t>(packetType);
-
+            static_cast<uint8_t>(packetType) << 4;
         uint32_t packetSize = 0; // to be computed
 
+        // variable header
+
+        // Connect acknowledge flags
+        // if clean start is 1; this value must be 0
+        uint8_t acknowledge = 0;
+        _body[0] = 0;
+        packetSize++;
+
+        // reason code
+        _body[1] = static_cast<uint8_t>(reasonCode);
+        packetSize++;
+
+        // properties
+        uint32_t propertiesSize = 0;
+        create_properties(2, propertiesSize, packet_type::CONNACK);
+
+
+
         return return_code::OK;
+    }
+
+    void create_properties(uint32_t start, uint32_t& size, packet_type packet_type) {
+
+        uint8_t* buff = _body.data() + start;
     }
 
 protected:
