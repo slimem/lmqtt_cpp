@@ -123,16 +123,34 @@ public:
 } // namespace packet
 
 enum class data_type : uint8_t {
-    BYTE,
-    TWO_BYTES_INT,
-    FOUR_BYTES_INT,
-    VARIABLE_BYTE_INT,
-    UTF8_STRING,
-    UTF8_STRING_ALPHA_NUM,
-    UTF8_STRING_PAIR,
-    BINARY,
-    UNKNOWN
+    BYTE                    = 0x1,
+    TWO_BYTES_INT           = 0x2,
+    FOUR_BYTES_INT          = 0x4,
+    VARIABLE_BYTE_INT       = 0x5,
+    UTF8_STRING             = 0x6,    
+    UTF8_STRING_ALPHA_NUM   = 0x7,
+    UTF8_STRING_PAIR        = 0x8,
+    BINARY                  = 0x9,
+    UNKNOWN                 = 0xF,
 };
+
+/*class data_utils {
+public:
+    static constexpr uint8_t get_fixed_data_size(data_type dtype) {
+        switch (dtype) {
+        case data_type::BYTE:
+        {
+            return 1;
+            break;
+        }
+        case data_type::TWO_BYTES_INT:
+        {
+            return 2;
+            break;
+        }
+        }
+    }
+};*/
 
 namespace property {
 
@@ -193,6 +211,12 @@ constexpr std::array<property_type, 17> connack_properties{
 
 class types_utils {
 public:
+
+    // if the property has a fixed size
+    static constexpr const bool is_property_fixed(property_type property) noexcept {
+        return (static_cast<uint8_t>(get_property_data_type(property))
+            <= static_cast<uint8_t>(data_type::FOUR_BYTES_INT));
+    }
 
     static constexpr const bool is_property_unique(property_type property) noexcept {
         switch (property) {

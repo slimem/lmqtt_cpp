@@ -309,6 +309,10 @@ public:
 		return reason_code::SUCCESS;
 	}
 
+	[[nodiscard]] uint32_t precompute_property_size(property::property_type ptype) {
+
+	}
+
 private:
 
 	// client properties in this order
