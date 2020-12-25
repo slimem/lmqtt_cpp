@@ -1,6 +1,10 @@
 #pragma once
 
 namespace lmqtt {
+
+// TODO: Replace by std::error_code in the future which
+// holds the error ID and error description, which helps
+// with REASON_STRING property
 enum class reason_code : uint8_t {
     SUCCESS                                 = 0x00,
     NO_SUBSCRIPTION_EXISTS                  = 0x11,

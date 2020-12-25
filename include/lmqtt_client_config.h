@@ -331,17 +331,15 @@ public:
 					return totalSize;
 				}
 			}
-			case property_type::RESPONSE_INFORMATION:
-			{
-				// TODO: Not supported for now
+			case property_type::RESPONSE_INFORMATION: return 0; // TODO: Not yet supported
+			case property_type::SERVER_REFERENCE: return 0; // TODO: Not yet supported
+			case property_type::AUTHENTICATION_METHOD: return 0; // TODO: Not yet supported
+			case property_type::AUTHENTICATION_DATA: return 0; // TODO: Not yet supported
+			default:
+				std::cerr << "[WARNING] -- Precomputing size for unknown property " << std::hex << static_cast<int>(ptype) << "\n";
 				return 0;
-				//if (_requestResponseInformation)
 			}
-
-			}
-			
 		}
-
 	}
 
 private:

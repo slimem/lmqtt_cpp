@@ -36,6 +36,35 @@ public:
         return return_code::OK;
     }
 
+    static const return_code encode_variable_int(
+        uint8_t* buffer,
+        uint32_t valueToEncode,
+        uint8_t& offset,
+        uint32_t buffSize
+    ) noexcept {
+        uint8_t div = 1;
+
+        if (buffSize < 4) {
+            return return_code::FAIL;
+        }
+
+        while (valueToEncode) {
+            uint8_t byte = valueToEncode % 0x7f;
+            valueToEncode /= 0x7f;
+
+            // if there's more data, set the top bit of this byte
+            if (valueToEncode) {
+                byte |= 0x7f;
+            }
+
+            if (offset >= buffSize) {
+                return return_code::FAIL;
+            }
+        }
+
+        return return_code::OK;
+    }
+
     static const return_code decode_utf8_str(uint8_t* buffer,
         std::string_view& decodedString,
         uint32_t& offset,
