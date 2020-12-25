@@ -42,7 +42,7 @@ public:
         uint8_t& offset,
         uint32_t buffSize
     ) noexcept {
-        uint8_t div = 1;
+        offset = 0;
 
         if (buffSize < 4) {
             return return_code::FAIL;
@@ -57,7 +57,9 @@ public:
                 byte |= 0x7f;
             }
 
-            if (offset >= buffSize) {
+            buffer[offset++] = byte;
+
+            if (offset > 4) {
                 return return_code::FAIL;
             }
         }
