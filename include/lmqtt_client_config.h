@@ -310,6 +310,37 @@ public:
 	}
 
 	[[nodiscard]] uint32_t precompute_property_size(property::property_type ptype) {
+		using namespace property;
+		if (types_utils::is_property_fixed(ptype)) {
+			return (1 + static_cast<uint8_t>(types_utils::get_property_data_type(ptype)));
+		} else {
+			switch (ptype) {
+			case property_type::ASSIGNED_CLIENT_ID: return (1 + 2 + _clientId.size());
+			case property_type::REASON_STRING:		return (1 + 2 + _reasonString.size());
+			case property_type::USER_PROPERTY:
+			{
+				//TODO: To be removed in the future (unless we need to really sed user properties)
+				uint32_t totalSize = 1;
+				for (auto& p : _userProprieties) {
+					totalSize += (p.first.size() + 2);
+					totalSize += (p.second.size() + 2);
+				}
+				if (!totalSize) {
+					return 0;
+				} else {
+					return totalSize;
+				}
+			}
+			case property_type::RESPONSE_INFORMATION:
+			{
+				// TODO: Not supported for now
+				return 0;
+				//if (_requestResponseInformation)
+			}
+
+			}
+			
+		}
 
 	}
 
@@ -330,6 +361,7 @@ private:
 
     std::string _clientId;
 
+	std::string _reasonString{ "Unspecified Error" };
 	uint8_t _qos = 0;
 	uint8_t _cleanStart = 0;
 	uint8_t _willFlag = 0;

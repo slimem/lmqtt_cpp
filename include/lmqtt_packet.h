@@ -463,7 +463,13 @@ public:
 
     void create_properties(uint32_t start, uint32_t& size, packet_type packet_type) {
 
-        uint8_t* buff = _body.data() + start;
+        //uint8_t* buff = _body.data() + start;
+        
+        // first we must pre-compute the size of all properties
+        uint32_t propertySize = 0;
+        for (auto ptype : property::connack_properties) {
+            propertySize += _clientCfg->precompute_property_size(ptype);
+        }
     }
 
 protected:
