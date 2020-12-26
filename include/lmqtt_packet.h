@@ -454,21 +454,23 @@ public:
 
         // properties
         uint32_t propertiesSize = 0;
-        create_properties(2, propertiesSize, packet_type::CONNACK);
+        if (create_properties(2, propertiesSize, packet_type::CONNACK) != return_code::OK) {
+            return return_code::FAIL;
+        }
 
 
 
         return return_code::OK;
     }
 
-    void create_properties(uint32_t start, uint32_t& size, packet_type packet_type) {
+    [[nodiscard]] return_code create_properties(uint32_t start, uint32_t& size, packet_type packet_type) {
 
         //uint8_t* buff = _body.data() + start;
         
         // first we must pre-compute the size of all properties
         uint32_t propertySize = 0;
         for (auto ptype : property::connack_properties) {
-            propertySize += _clientCfg->precompute_property_size(ptype);
+            propertySize += _clientCfg->get_property_size(ptype);
         }
 
         if (_body.size() < 4) {
@@ -483,13 +485,32 @@ public:
 
         _body.resize(viSize + propertySize);
 
+        uint8_t* buff = _body.data() + viSize;
+        const uint8_t* buffEnd = _body.data() + _body.size();
+        uint32_t index = 0;
+        uint32_t remainingSize = _body.size() - viSize;
+        for (auto ptype : property::connack_properties) {
+            //while (buff != buffEnd) {
+            //
+            //}
+            //buff[index++] = static_cast<uint8_t>(ptype);
 
+            uint32_t propertySize = 0;
+            if (_clientCfg->fill_property(buff, remainingSize, ptype, propertySize) != return_code::OK) {
+                return return_code::FAIL;
+            }
+        }
+        //for (auto ptype : property::connack_properties) {
+        //    _clientCfg->fill_property(ptype);
+        //}
 
         /*encode_variable_int(
             uint8_t * buffer,
             uint32_t valueToEncode,
             uint8_t & offset,
             uint32_t buffSize*/
+
+        return return_code::OK;
     }
 
 protected:

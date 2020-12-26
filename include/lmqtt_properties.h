@@ -235,6 +235,117 @@ get_property_data(
     }    
 }
 
+template<typename T>
+[[nodiscard]] return_code write_property_to_buffer(uint8_t* buffer, uint32_t buffSize, T data) {
+    std::cout << "[WARNING] -- Writing unknown property data type to buffer: " << typeid(T).name();
+    return return_code::FAIL;
+}
+
+template<>
+[[nodiscard]] return_code write_property_to_buffer<uint8_t>(uint8_t* buffer, uint32_t buffSize, uint8_t data) {
+
+    if (buffSize < sizeof(uint8_t)) {
+        //TODO: add more meningful debug message
+        return return_code::FAIL;
+    }
+
+    *buffer = data;
+    return return_code::OK;
+}
+
+template<>
+[[nodiscard]] return_code write_property_to_buffer<uint16_t>(uint8_t* buffer, uint32_t buffSize, uint16_t data) {
+
+    if (buffSize < sizeof(uint16_t)) {
+        //TODO: add more meningful debug message
+        return return_code::FAIL;
+    }
+
+    buffer[0] = data >> 0x8;
+    buffer[1] = data & 0xFF;
+
+    return return_code::OK;
+}
+
+template<>
+[[nodiscard]] return_code write_property_to_buffer<uint32_t>(uint8_t* buffer, uint32_t buffSize, uint32_t data) {
+
+    if (buffSize < sizeof(uint32_t)) {
+        //TODO: add more meningful debug message
+        return return_code::FAIL;
+    }
+
+    buffer[0] = data >> 0x18;
+    buffer[1] = (data >> 0x10) & 0xFF;
+    buffer[2] = (data >> 0x8) & 0xFF;
+    buffer[3] = data & 0xFF;
+
+    return return_code::OK;
+}
+
+template<>
+[[nodiscard]] return_code write_property_to_buffer<std::string&>(uint8_t* buffer, uint32_t buffSize, std::string& data) {
+
+    if (buffSize < (data.size() + 2)) {
+        //TODO: add more meningful debug message
+        return return_code::FAIL;
+    }
+
+    uint16_t strSize = data.size();
+    buffer[0] = strSize >> 0x8;
+    buffer[1] = strSize & 0xFF;
+
+    std::memcpy(buffer + 2, data.c_str(), strSize);
+
+    return return_code::OK;
+}
+
+template<>
+[[nodiscard]] return_code write_property_to_buffer<std::pair<const std::string, const std::string>&>(
+    uint8_t* buffer,
+    uint32_t buffSize,
+    std::pair<const std::string, const std::string>& data) {
+
+    uint16_t str1Size = data.first.size();
+    uint16_t str2Size = data.second.size();
+    uint32_t str2WritePos = str1Size + 4;
+
+    if (buffSize < (str1Size + str2Size + 4)) {
+        //TODO: add more meningful debug message
+        return return_code::FAIL;
+    }
+
+    buffer[0] = str1Size >> 0x8;
+    buffer[1] = str1Size & 0xFF;
+    std::memcpy(buffer + 2, data.first.c_str(), str1Size);
+
+    buffer[2 + str1Size]        = str2Size >> 0x8;
+    buffer[2 + str1Size + 1]    = str2Size & 0xFF;
+    std::memcpy(buffer + 2 + str1Size + 2, data.second.c_str(), str2Size);
+
+    return return_code::OK;
+}
+
+template<>
+[[nodiscard]] return_code write_property_to_buffer<std::vector<uint8_t>&>(
+    uint8_t* buffer,
+    uint32_t buffSize,
+    std::vector<uint8_t>& data) {
+
+    uint16_t dataSize = data.size();
+
+    if (buffSize < (dataSize + 2)) {
+        //TODO: add more meningful debug message
+        return return_code::FAIL;
+    }
+
+    buffer[0] = dataSize >> 0x8;
+    buffer[1] = dataSize & 0xFF;
+    std::memcpy(buffer + 2, data.data(), dataSize);
+
+    return return_code::OK;
+}
+
 } //namespace property
 
 } // namespace lmqtt

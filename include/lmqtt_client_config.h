@@ -309,7 +309,7 @@ public:
 		return reason_code::SUCCESS;
 	}
 
-	[[nodiscard]] uint32_t precompute_property_size(property::property_type ptype) {
+	[[nodiscard]] uint32_t get_property_size(property::property_type ptype) {
 		using namespace property;
 		if (types_utils::is_property_fixed(ptype)) {
 			return (1 + static_cast<uint8_t>(types_utils::get_property_data_type(ptype)));
@@ -342,6 +342,215 @@ public:
 		}
 	}
 
+	[[nodiscard]] return_code fill_property(uint8_t* buff, uint32_t buffSize, property::property_type ptype, uint32_t propertySize) {
+
+		using namespace property;
+		propertySize = get_property_size(ptype);
+
+		switch (ptype) {
+		case property_type::SESSION_EXPIRY_INTERVAL:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			
+			if (write_property_to_buffer<uint32_t>(buff + 1, buffSize - 1, _sessionExpiryInterval) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::RECEIVE_MAXIMUM:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint16_t>(buff + 1, buffSize - 1, _receiveMaximum) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::MAXIMUM_QOS:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, _maximumQos) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::RETAIN_AVAILABLE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, _retainAvailable) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::MAXIMUM_PACKET_SIZE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint32_t>(buff + 1, buffSize - 1, _maximumPacketSize) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::ASSIGNED_CLIENT_ID:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<std::string&>(buff + 1, buffSize - 1, _clientId) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::TOPIC_ALIAS_MAXIMUM:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint16_t>(buff + 1, buffSize - 1, _topicAliasMaximum) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::REASON_STRING:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<std::string&>(buff + 1, buffSize - 1, _reasonString) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::USER_PROPERTY:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			for (auto& prop : _userProprieties) {
+				if (write_property_to_buffer<std::pair<const std::string, const std::string>&>(buff + 1, buffSize - 1, prop) != return_code::OK) {
+					return return_code::FAIL;
+				}
+			}
+			break;
+		}
+		case property_type::WILDCARD_SUBSCRIPTION_AVAILABLE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, _wildcardSubscription) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::SUBSCRIPTION_ID_AVAILABLE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, 1) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::SHARED_SUBSCRIPTION_AVAILABLE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, 1) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::SERVER_KEEP_ALIVE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint16_t>(buff + 1, buffSize - 1, _keepAlive) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::RESPONSE_INFORMATION:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, _requestResponseInformation) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		case property_type::SERVER_REFERENCE:
+		{
+			// check if the buffer can hold this property
+			if (buffSize < propertySize) {
+				return return_code::FAIL;
+			}
+
+			buff[0] = static_cast<uint8_t>(ptype);
+			if (write_property_to_buffer<uint8_t>(buff + 1, buffSize - 1, _requestResponseInformation) != return_code::OK) {
+				return return_code::FAIL;
+			}
+			break;
+		}
+		}
+
+		return return_code::OK;
+	}
+
 private:
 
 	// client properties in this order
@@ -356,6 +565,10 @@ private:
 	std::vector<uint8_t> _authData;
 	std::string _userName;
 	std::vector<uint8_t> _password;
+
+	uint8_t _maximumQos = 1;
+	uint8_t _retainAvailable = 1;
+	uint8_t _wildcardSubscription = 1;
 
     std::string _clientId;
 
