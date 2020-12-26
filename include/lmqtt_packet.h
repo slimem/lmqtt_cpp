@@ -470,6 +470,26 @@ public:
         for (auto ptype : property::connack_properties) {
             propertySize += _clientCfg->precompute_property_size(ptype);
         }
+
+        if (_body.size() < 4) {
+            _body.resize(4);
+        }
+
+        // TODO: Update packet size according to client maximum packet size
+        // recompute_packet_length(propertySize)
+
+        uint8_t viSize;
+        utils::encode_variable_int(_body.data(), propertySize, viSize, _body.size());
+
+        _body.resize(viSize + propertySize);
+
+
+
+        /*encode_variable_int(
+            uint8_t * buffer,
+            uint32_t valueToEncode,
+            uint8_t & offset,
+            uint32_t buffSize*/
     }
 
 protected:

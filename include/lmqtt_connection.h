@@ -203,6 +203,8 @@ private:
 						}
 						std::cout << "[SESSION] Identified client " << _clientCfg->_clientId << std::endl;
 						_inPacket.reset();
+
+						_inPacket.create_connack_packet(packet_type::CONNACK, reason_code::SUCCESS);
 						
 						//configure_client();
 						break;
