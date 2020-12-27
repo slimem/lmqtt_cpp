@@ -499,6 +499,7 @@ public:
             if (_clientCfg->fill_property(buff, remainingSize, ptype, propertySize) != return_code::OK) {
                 return return_code::FAIL;
             }
+            buff += propertySize;
         }
         //for (auto ptype : property::connack_properties) {
         //    _clientCfg->fill_property(ptype);

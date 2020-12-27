@@ -31,7 +31,8 @@ public:
 			if (realData->check_data_type(property::property_type::SESSION_EXPIRY_INTERVAL) != return_code::OK) {
 				return reason_code::PROTOCOL_ERROR;
 			}
-			_sessionExpiryInterval = realData->get_data();
+			//_sessionExpiryInterval = realData->get_data();
+			_sessionExpiryInterval = 0xaabbccdd;
 			break;
 		}
 		case property::property_type::RECEIVE_MAXIMUM:
@@ -342,7 +343,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] return_code fill_property(uint8_t* buff, uint32_t buffSize, property::property_type ptype, uint32_t propertySize) {
+	[[nodiscard]] return_code fill_property(uint8_t* buff, uint32_t buffSize, property::property_type ptype, uint32_t& propertySize) {
 
 		using namespace property;
 		propertySize = get_property_size(ptype);
@@ -360,6 +361,7 @@ public:
 			if (write_property_to_buffer<uint32_t>(buff + 1, buffSize - 1, _sessionExpiryInterval) != return_code::OK) {
 				return return_code::FAIL;
 			}
+
 			break;
 		}
 		case property_type::RECEIVE_MAXIMUM:
@@ -554,7 +556,7 @@ public:
 private:
 
 	// client properties in this order
-	uint32_t _sessionExpiryInterval = 0;
+	uint32_t _sessionExpiryInterval = 0xaabbccdd;
 	uint16_t _receiveMaximum = 0;
 	uint32_t _maximumPacketSize = 0;
 	uint16_t _topicAliasMaximum = 0;
