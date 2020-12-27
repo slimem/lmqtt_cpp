@@ -464,9 +464,11 @@ public:
 
 			buff[0] = static_cast<uint8_t>(ptype);
 			for (auto& prop : _userProprieties) {
-				if (write_property_to_buffer<std::pair<const std::string, const std::string>&>(buff + 1, buffSize - 1, prop) != return_code::OK) {
+				uint8_t* buffPos = buff + 1;
+				if (write_property_to_buffer<std::pair<const std::string, const std::string>&>(buffPos, buffSize - 1, prop) != return_code::OK) {
 					return return_code::FAIL;
 				}
+				buffPos += (prop.first.size() + prop.second.size() + 4);
 			}
 			break;
 		}
