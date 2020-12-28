@@ -78,6 +78,10 @@ class lmqtt_packet {
             }
             break;
         case packet_type::PUBLISH:
+        {
+            std::cout << "Received publish packet\n";
+            break;
+        }
         case packet_type::PUBACK:
         case packet_type::PUBREC:
         case packet_type::PUBREL:

@@ -103,6 +103,8 @@ private:
 
 					_receivedData = true;
 
+					std::cout << "Receiving DATA...\n";
+
 					// we identify the packet type
 					const reason_code rcode = _inPacket.create_fixed_header();
 
@@ -158,6 +160,7 @@ private:
 				} else {
 					std::cout << "[" << _id << "] Reading Header Failed: " << ec.message() << "\n";
 					_socket.close();
+					schedule_for_deletion();
 				}
 			}
 		);
@@ -206,7 +209,8 @@ private:
 
 						_inPacket.create_connack_packet(packet_type::CONNACK, reason_code::SUCCESS);
 						
-						//configure_client();
+						send_packet();
+						schedule_for_deletion();
 						break;
 					}
 					}
@@ -219,9 +223,9 @@ private:
 
 					std::cout << "[" << realData->get_data() << "] Connection Approved\n";*/
 
-					_socket.close();
-					schedule_for_deletion();
-					return;
+					//_socket.close();
+					//schedule_for_deletion();
+					//return;
 
 
 					/*if (_inPacket.decode_packet_body() != reason_code::SUCCESS) {
@@ -238,6 +242,38 @@ private:
 				}
 			}
 		);
+	}
+
+	void send_packet() {
+		asio::post(_context,
+			[this]()
+			{
+				// TODO: handle this
+				bool busy = false;
+				if (!busy)
+				{
+					write_packet();
+				}
+			});
+	}
+
+	void write_packet() {
+		asio::async_write(
+			_socket,
+			asio::buffer(
+				_inPacket._body.data(),
+				_inPacket._body.size()
+			),
+			[this](std::error_code ec, size_t length) {
+				if (!ec) {
+					std::cout << "Sent PACKET" << std::endl;
+					//_inPacket.reset();
+					//read_fixed_header();
+				} else {
+					std::cout << "[" << _id << "] writing pakcet body Failed: " << ec.message() << "\n";
+					_socket.close();
+				}
+			});
 	}
 
 	void read_packet() {
@@ -297,6 +333,7 @@ protected:
 	// on connect, we expect a connect packet
 	bool _isFirstPacket = true;
 	std::atomic<bool> _receivedData{false};
+	std::atomic<bool> _packetSent{ false };
 
 	lmqtt_packet _inPacket;
 	lmqtt_packet _outPacket;
