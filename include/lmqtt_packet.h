@@ -442,60 +442,61 @@ public:
 
         // The connack packet size is the following:
         // 1 byte + (1 to 4) bytes + 1 byte + 1 byte + N bytes (properties size)
+        
+        // In the variable header, we only know the size of the following:
+        // 1 byte (Acknowledge flags) + 1 byte (Reason code) = 2
+        uint32_t variabePacketSize = 2;
+        uint32_t propertiesSize = 0;
+        
+        // first we must pre-compute the size of all properties
+        for (auto ptype : property::connack_properties) {
+            propertiesSize += _clientCfg->get_property_size(ptype);
+        }
+        variabePacketSize += propertiesSize;
 
-        // create fixed header
-        //_header._controlField =
-        _body[0] = static_cast<uint8_t>(packetType) << 4;
-        uint32_t packetSize = 1;
+        // now we compute the size of the variable size int (1 to 4 bytes)
+        uint8_t variableIntSize = utils::get_variable_int_size(variabePacketSize);
+        
+        uint32_t fullPacketSize = variableIntSize + variabePacketSize;
 
-        // variable header
+        fullPacketSize++; // we add the first byte of the header 
+
+        _body.resize(fullPacketSize);
+
+        // We start filling our packet body
+
+        // Fixed header
+        {
+            _body[0] = static_cast<uint8_t>(packetType) << 4;
+            uint8_t viSize;
+            utils::encode_variable_int(_body.data() + 1, _body.size() - 1, variabePacketSize, viSize);
+            if (viSize != utils::get_variable_int_size(variabePacketSize)) {
+                return return_code::FAIL;
+            }
+        }
+
+        // Variable header
+        
+        uint32_t variableHeaderStart = 1 + variableIntSize;
 
         // Connect acknowledge flags
         // if clean start is 1; this value must be 0
-        uint8_t acknowledge = 0;
-        _body[0] = 0;
-        packetSize++;
+        _body[variableHeaderStart + 0] = 0;
 
         // reason code
-        _body[1] = static_cast<uint8_t>(reasonCode);
-        packetSize++;
+        _body[variableHeaderStart + 1] = static_cast<uint8_t>(reasonCode);
 
-        // properties
-        uint32_t propertiesSize = 0;
-        if (create_properties(2, propertiesSize, packet_type::CONNACK) != return_code::OK) {
-            return return_code::FAIL;
-        }
-
-        return return_code::OK;
-    }
-
-    [[nodiscard]] return_code create_properties(uint32_t start, uint32_t& size, packet_type packet_type) {
-
-        //uint8_t* buff = _body.data() + start;
-        
-        // first we must pre-compute the size of all properties
-        uint32_t propertySize = 0;
-        for (auto ptype : property::connack_properties) {
-            propertySize += _clientCfg->get_property_size(ptype);
-        }
-
-        if (_body.size() < 4) {
-            _body.resize(4);
-        }
-
-        // TODO: Update packet size according to client maximum packet size
-        // recompute_packet_length(propertySize)
-
-        uint8_t viSize;
-        utils::encode_variable_int(_body.data(), propertySize, viSize, _body.size());
-
-        _body.resize(viSize + propertySize);
-
-        uint8_t* buff = _body.data() + viSize;
+        // Connack properties
+        uint8_t* buff = _body.data() + variableHeaderStart + 2;
         const uint8_t* buffEnd = _body.data() + _body.size();
         uint32_t index = 0;
-        uint32_t remainingSize = _body.size() - viSize;
-        for (auto ptype : property::connack_properties) {
+        uint32_t remainingSize = _body.size() - (variableHeaderStart + 2);
+        if (remainingSize != propertiesSize) {
+            return return_code::FAIL;
+        }
+        while ((buff != buffEnd) && (index < 13)) {
+
+            auto ptype = property::connack_properties[index++];
             //while (buff != buffEnd) {
             //
             //}
@@ -506,6 +507,7 @@ public:
                 return return_code::FAIL;
             }
             buff += propertySize;
+            remainingSize -= propertySize;
         }
         //for (auto ptype : property::connack_properties) {
         //    _clientCfg->fill_property(ptype);

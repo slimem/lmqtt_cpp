@@ -36,11 +36,18 @@ public:
         return return_code::OK;
     }
 
+    static uint8_t get_variable_int_size(uint32_t value) noexcept {
+        if (value >= 0x200000) return 4;
+        else if (value >= 0x4000) return 3;
+        else if (value >= 0x80) return 2;
+        else return 1;
+    }
+
     static const return_code encode_variable_int(
         uint8_t* buffer,
+        uint32_t buffSize,
         uint32_t valueToEncode,
-        uint8_t& offset,
-        uint32_t buffSize
+        uint8_t& offset
     ) noexcept {
         offset = 0;
 
