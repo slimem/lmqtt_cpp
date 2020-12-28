@@ -34,6 +34,11 @@ class lmqtt_packet {
     friend class connection;
 
     fixed_header _header {};
+    // the following vector is used for the following:
+    // 1 - For received packets, it holds the packet except the
+    //     fixed header
+    // 2 - For to-be-sent packets, it holds everything. This will
+    //     avoid using a different container for sent packets
     std::vector<uint8_t> _body;
     packet_type _type = packet_type::UNKNOWN;
 
@@ -435,10 +440,13 @@ public:
             return return_code::FAIL;
         }
 
+        // The connack packet size is the following:
+        // 1 byte + (1 to 4) bytes + 1 byte + 1 byte + N bytes (properties size)
+
         // create fixed header
-        _header._controlField =
-            static_cast<uint8_t>(packetType) << 4;
-        uint32_t packetSize = 0; // to be computed
+        //_header._controlField =
+        _body[0] = static_cast<uint8_t>(packetType) << 4;
+        uint32_t packetSize = 1;
 
         // variable header
 
@@ -457,8 +465,6 @@ public:
         if (create_properties(2, propertiesSize, packet_type::CONNACK) != return_code::OK) {
             return return_code::FAIL;
         }
-
-
 
         return return_code::OK;
     }
