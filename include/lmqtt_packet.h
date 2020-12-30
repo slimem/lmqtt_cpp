@@ -473,7 +473,9 @@ public:
         {
             _body[0] = static_cast<uint8_t>(packetType) << 4;
             uint8_t viSize;
-            utils::encode_variable_int(_body.data() + 1, _body.size() - 1, variabePacketSize, viSize);
+            if (utils::encode_variable_int(_body.data() + 1, _body.size() - 1, variabePacketSize, viSize) != return_code::OK) {
+                return return_code::FAIL;
+            }
             if (viSize != utils::get_variable_int_size(variabePacketSize)) {
                 return return_code::FAIL;
             }
@@ -498,7 +500,7 @@ public:
         if (remainingSize != propertiesSize) {
             return return_code::FAIL;
         }
-        while ((buff != buffEnd) && (index < 13)) {
+        while ((buff != buffEnd) && (index < 17)) {
 
             auto ptype = property::connack_properties[index++];
             //while (buff != buffEnd) {

@@ -291,7 +291,7 @@ template<>
         return return_code::FAIL;
     }
 
-    uint16_t strSize = data.size();
+    uint16_t strSize = (uint16_t)data.size();
     buffer[0] = strSize >> 0x8;
     buffer[1] = strSize & 0xFF;
 
@@ -306,11 +306,13 @@ template<>
     uint32_t buffSize,
     std::pair<const std::string, const std::string>& data) {
 
-    uint16_t str1Size = data.first.size();
-    uint16_t str2Size = data.second.size();
+    uint16_t str1Size = (uint16_t)data.first.size();
+    uint16_t str2Size = (uint16_t)data.second.size();
     uint32_t str2WritePos = str1Size + 4;
 
-    if (buffSize < (str1Size + str2Size + 4)) {
+    uint32_t buffSizeCompare = str1Size + str2Size + 4;
+
+    if (buffSize < buffSizeCompare) {
         //TODO: add more meningful debug message
         return return_code::FAIL;
     }
@@ -332,9 +334,11 @@ template<>
     uint32_t buffSize,
     std::vector<uint8_t>& data) {
 
-    uint16_t dataSize = data.size();
+    uint16_t dataSize = (uint16_t)data.size();
 
-    if (buffSize < (dataSize + 2)) {
+    uint32_t buffSizeCompare = dataSize + 2;
+
+    if (buffSize < buffSizeCompare) {
         //TODO: add more meningful debug message
         return return_code::FAIL;
     }

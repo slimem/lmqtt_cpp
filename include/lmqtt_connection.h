@@ -101,6 +101,7 @@ private:
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
 
+
 					_receivedData = true;
 
 					std::cout << "Receiving DATA...\n";
@@ -193,7 +194,7 @@ private:
 			),
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
-
+					
 					reason_code rcode;
 					switch (_inPacket._type) {
 					case packet_type::CONNECT:
@@ -207,10 +208,14 @@ private:
 						std::cout << "[SESSION] Identified client " << _clientCfg->_clientId << std::endl;
 						_inPacket.reset();
 
-						_inPacket.create_connack_packet(packet_type::CONNACK, reason_code::SUCCESS);
-						
-						send_packet();
-						schedule_for_deletion();
+						if (_inPacket.create_connack_packet(packet_type::CONNACK, reason_code::SUCCESS) != return_code::OK) {
+							_socket.close();
+							schedule_for_deletion();
+							return;
+						}
+						//read_fixed_header();
+						//send_packet();
+						//schedule_for_deletion();
 						break;
 					}
 					}
@@ -267,8 +272,18 @@ private:
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
 					std::cout << "Sent PACKET" << std::endl;
+					_socket.close();
 					//_inPacket.reset();
 					//read_fixed_header();
+
+					//while (true) {
+					//	std::this_thread::sleep_for(2s);
+					//	if (!_socket.is_open()) {
+					//		std::cout << "SOCKET CLOSED....\n";
+					//	}
+					//	_socket.close();
+					//
+					//}
 				} else {
 					std::cout << "[" << _id << "] writing pakcet body Failed: " << ec.message() << "\n";
 					_socket.close();

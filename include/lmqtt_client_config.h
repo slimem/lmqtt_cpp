@@ -559,8 +559,8 @@ private:
 
 	// client properties in this order
 	uint32_t _sessionExpiryInterval = 0xaabbccdd;
-	uint16_t _receiveMaximum = 0;
-	uint32_t _maximumPacketSize = 0;
+	uint16_t _receiveMaximum = 100;
+	uint32_t _maximumPacketSize = 0xFFFFFFFF;
 	uint16_t _topicAliasMaximum = 0;
 	uint8_t _requestResponseInformation = 0; // only applicable to CONNACK
 	uint8_t _requestProblemInformation = 0; // applicable to other packets if allowed
