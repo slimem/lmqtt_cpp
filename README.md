@@ -53,3 +53,19 @@ To explore the example and how a CONNECT packet is parsed, run it in debug mode,
         // byte 1 : length LSB
         const uint8_t protocolNameLen = *(ptr + 1) + *ptr;
 ```
+
+The next step is to construct the CONNACK packet then post to the asio context
+```cpp
+	void send_packet() {
+		asio::post(_context,
+			[this]()
+			{
+				// TODO: handle this
+				bool busy = false;
+				if (!busy)
+				{
+					write_packet();
+				}
+			});
+	}
+```
