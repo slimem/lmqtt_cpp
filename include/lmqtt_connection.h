@@ -213,8 +213,10 @@ private:
 							schedule_for_deletion();
 							return;
 						}
+
+						//_outPacket.create_short_packet();
 						//read_fixed_header();
-						//send_packet();
+						send_packet();
 						//schedule_for_deletion();
 						break;
 					}
@@ -272,7 +274,9 @@ private:
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
 					std::cout << "Sent PACKET" << std::endl;
-					_socket.close();
+					//_socket.close();
+					//std::cout << "Closing\n";
+					//schedule_for_deletion();
 					//_inPacket.reset();
 					//read_fixed_header();
 

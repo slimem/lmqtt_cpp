@@ -528,6 +528,16 @@ public:
         return return_code::OK;
     }
 
+    return_code create_short_packet() {
+        _body.resize(4);
+
+        _body[0] = 2 << 4;
+        _body[1] = 2;
+        _body[2] = 0;
+        _body[3] = static_cast<uint8_t>(reason_code::SUCCESS);
+        return return_code::OK;
+    }
+
 protected:
     const std::string_view get_type_string() const noexcept {
         switch (_type) {

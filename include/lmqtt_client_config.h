@@ -31,8 +31,7 @@ public:
 			if (realData->check_data_type(property::property_type::SESSION_EXPIRY_INTERVAL) != return_code::OK) {
 				return reason_code::PROTOCOL_ERROR;
 			}
-			//_sessionExpiryInterval = realData->get_data();
-			_sessionExpiryInterval = 0xaabbccdd;
+			_sessionExpiryInterval = realData->get_data();
 			break;
 		}
 		case property::property_type::RECEIVE_MAXIMUM:
@@ -558,8 +557,10 @@ public:
 private:
 
 	// client properties in this order
-	uint32_t _sessionExpiryInterval = 0xaabbccdd;
-	uint16_t _receiveMaximum = 100;
+	uint32_t _sessionExpiryInterval = 0xaabbccdd; // by default, it's easier to debug
+	uint16_t _receiveMaximum = 0xFFFF; // value defaults to 65'535
+	uint8_t _maximumQos = 1;
+	uint8_t _retainAvailable = 1;
 	uint32_t _maximumPacketSize = 0xFFFFFFFF;
 	uint16_t _topicAliasMaximum = 0;
 	uint8_t _requestResponseInformation = 0; // only applicable to CONNACK
@@ -570,8 +571,6 @@ private:
 	std::string _userName;
 	std::vector<uint8_t> _password;
 
-	uint8_t _maximumQos = 1;
-	uint8_t _retainAvailable = 1;
 	uint8_t _wildcardSubscription = 1;
 
     std::string _clientId;
