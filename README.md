@@ -10,6 +10,8 @@ I chose to use **non-boost asio** because it will be supported in c++ standard.
 The server now parses CONNECT packets. In the near future, the server will be able to accept a connection and send pack an ACK packet.
 The server will only accept packets with a payload size no more than 1 MB.
 
+I am currently able to establish a CONNECT CONNACK packet transaction but the client disconnects after receiving the CONNACK packet, so I am currently debugging that. Also, I am working on implementing a better error reporting system based on std::error_code with holds both the enum to error type and the error message itself. This will become handy in the future since I will send the reason informations with the ACK packet.
+
 The lmqtt packet is implemented as follows (in lmqtt_packet.h)
 ```cpp
 class lmqtt_packet {
@@ -50,4 +52,20 @@ To explore the example and how a CONNECT packet is parsed, run it in debug mode,
         // byte 0 : length MSB
         // byte 1 : length LSB
         const uint8_t protocolNameLen = *(ptr + 1) + *ptr;
+```
+
+The next step is to construct the CONNACK packet then post to the asio context
+```cpp
+	void send_packet() {
+		asio::post(_context,
+			[this]()
+			{
+				// TODO: handle this
+				bool busy = false;
+				if (!busy)
+				{
+					write_packet();
+				}
+			});
+	}
 ```
