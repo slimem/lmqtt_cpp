@@ -101,7 +101,7 @@ private:
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
 
-
+					std::cout << "Reading FIXED HEADER!!!!!\n";
 					_receivedData = true;
 
 					std::cout << "Receiving DATA...\n";
@@ -118,6 +118,7 @@ private:
 					if (_isFirstPacket) {
 						if (_inPacket._type != packet_type::CONNECT) {
 							_socket.close();
+							schedule_for_deletion();
 							return;
 						}
 						_isFirstPacket = false;
@@ -278,7 +279,13 @@ private:
 					//std::cout << "Closing\n";
 					//schedule_for_deletion();
 					//_inPacket.reset();
-					//read_fixed_header();
+					std::cout << "Finished Sending Packet...\n";
+					std::this_thread::sleep_for(5s);
+					std::cout << "Finished Sending Packet22222...\n";
+					if (!_socket.is_open()) {
+						std::cout << " Connection was closed by the remote!!!!!\n";
+					}
+					read_fixed_header();
 
 					//while (true) {
 					//	std::this_thread::sleep_for(2s);
