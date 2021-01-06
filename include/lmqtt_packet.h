@@ -102,7 +102,7 @@ class lmqtt_packet {
             }
             break;
         }
-        return reason_code::SUCCESS;
+        return reason_code::MALFORMED_PACKET;
     }
 
     [[nodiscard]] const reason_code decode_packet_body() {

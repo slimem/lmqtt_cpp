@@ -217,7 +217,7 @@ private:
 
 						//_outPacket.create_short_packet();
 						//read_fixed_header();
-						send_packet();
+						//send_packet();
 						//schedule_for_deletion();
 						break;
 					}
