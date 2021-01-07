@@ -101,10 +101,7 @@ private:
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
 
-					std::cout << "Reading FIXED HEADER!!!!!\n";
 					_receivedData = true;
-
-					std::cout << "Receiving DATA...\n";
 
 					// we identify the packet type
 					const reason_code rcode = _inPacket.create_fixed_header();
@@ -149,7 +146,7 @@ private:
 
 					// only allow packets with a certain size
 					if (_inPacket._header._packetLen > PACKET_SIZE_LIMIT) {
-						std::cout << "[" << _id << "] Closed connection. Reason: Packet size limit exceeded\n";
+						std::cout << "[" << _id << "] Closed connection. Reason: Packet size limit exceeded: " << _inPacket._header._packetLen << "\n";
 						_socket.close();
 						return;
 					}
@@ -209,17 +206,23 @@ private:
 						std::cout << "[SESSION] Identified client " << _clientCfg->_clientId << std::endl;
 						_inPacket.reset();
 
-						if (_inPacket.create_connack_packet(packet_type::CONNACK, reason_code::SUCCESS) != return_code::OK) {
+						if (_outPacket.create_connack_packet(packet_type::CONNACK, reason_code::SUCCESS) != return_code::OK) {
 							_socket.close();
 							schedule_for_deletion();
 							return;
 						}
 
-						//_outPacket.create_short_packet();
-						//read_fixed_header();
-						//send_packet();
-						//schedule_for_deletion();
+						send_packet();
 						break;
+					}
+					case packet_type::PUBLISH:
+					{
+						rcode = _inPacket.decode_publish_packet_body();
+						if (rcode != reason_code::SUCCESS) {
+							_socket.close();
+							schedule_for_deletion();
+							return;
+						}
 					}
 					}
 
@@ -269,32 +272,12 @@ private:
 		asio::async_write(
 			_socket,
 			asio::buffer(
-				_inPacket._body.data(),
-				_inPacket._body.size()
+				_outPacket._body.data(),
+				_outPacket._body.size()
 			),
 			[this](std::error_code ec, size_t length) {
 				if (!ec) {
-					std::cout << "Sent PACKET" << std::endl;
-					//_socket.close();
-					//std::cout << "Closing\n";
-					//schedule_for_deletion();
-					//_inPacket.reset();
-					std::cout << "Finished Sending Packet...\n";
-					std::this_thread::sleep_for(5s);
-					std::cout << "Finished Sending Packet22222...\n";
-					if (!_socket.is_open()) {
-						std::cout << " Connection was closed by the remote!!!!!\n";
-					}
 					read_fixed_header();
-
-					//while (true) {
-					//	std::this_thread::sleep_for(2s);
-					//	if (!_socket.is_open()) {
-					//		std::cout << "SOCKET CLOSED....\n";
-					//	}
-					//	_socket.close();
-					//
-					//}
 				} else {
 					std::cout << "[" << _id << "] writing pakcet body Failed: " << ec.message() << "\n";
 					_socket.close();

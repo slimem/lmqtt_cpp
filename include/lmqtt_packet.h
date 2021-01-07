@@ -66,6 +66,7 @@ class lmqtt_packet {
             if ((uint8_t)packet_flag::CONNECT != pflag) {
                 return reason_code::MALFORMED_PACKET;
             }
+            return reason_code::SUCCESS;
             }
             break;
         case packet_type::CONNACK:
@@ -75,11 +76,18 @@ class lmqtt_packet {
                 if ((uint8_t)packet_flag::CONNACK != pflag) {
                     return reason_code::MALFORMED_PACKET;
                 }
+                return reason_code::SUCCESS;
+                break;
             }
-            break;
+            
         case packet_type::PUBLISH:
         {
-            std::cout << "Received publish packet\n";
+           _type = packet_type::PUBLISH;
+           // check for field
+           if ((uint8_t)packet_flag::PUBLISH != pflag) {
+               return reason_code::MALFORMED_PACKET;
+           }
+           return reason_code::SUCCESS;
             break;
         }
         case packet_type::PUBACK:
@@ -253,8 +261,19 @@ class lmqtt_packet {
         //std::chrono::system_clock::time_point timeThen;
         //msg >> timeThen;
         //std::cout << "Ping: " << std::chrono::duration<double>(timeNow - timeThen).count() << "\n";
-        std::cout << "[DEBUG] -- FINISHED PARSING PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
+        std::cout << "[DEBUG] -- FINISHED PARSING CONNACK PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
 
+        return reason_code::SUCCESS;
+    }
+
+    [[nodiscard]] const reason_code decode_publish_packet_body() {
+        std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
+
+
+
+
+        std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
+        std::cout << "[DEBUG] -- FINISHED PARSING PUBLISH PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
         return reason_code::SUCCESS;
     }
 
@@ -453,10 +472,15 @@ public:
         uint32_t propertiesSize = 0;
         
         // first we must pre-compute the size of all properties
-        for (auto ptype : property::connack_properties) {
-            propertiesSize += _clientCfg->get_property_size(ptype);
+        uint8_t propertiesVarSize = 0;
+        {
+            for (auto ptype : property::connack_properties) {
+                propertiesSize += _clientCfg->get_property_size(ptype);
+            }
+            propertiesVarSize = utils::get_variable_int_size(propertiesSize);
+
         }
-        variabePacketSize += propertiesSize;
+        variabePacketSize += (propertiesSize + propertiesVarSize);
 
         // now we compute the size of the variable size int (1 to 4 bytes)
         uint8_t variableIntSize = utils::get_variable_int_size(variabePacketSize);
@@ -493,14 +517,27 @@ public:
         _body[variableHeaderStart + 1] = static_cast<uint8_t>(reasonCode);
 
         // Connack properties
-        uint8_t* buff = _body.data() + variableHeaderStart + 2;
+        // Encode properties variable int size
+        {
+            uint8_t viSize;
+            if (utils::encode_variable_int(_body.data() + variableHeaderStart + 2, _body.size() - 1, propertiesSize, viSize) != return_code::OK) {
+                return return_code::FAIL;
+            }
+            if (viSize != propertiesVarSize) {
+                return return_code::FAIL;
+            }
+        }
+
+
+
+        uint8_t* buff = _body.data() + variableHeaderStart + 2 + propertiesVarSize;
         const uint8_t* buffEnd = _body.data() + _body.size();
         uint32_t index = 0;
-        uint32_t remainingSize = _body.size() - (variableHeaderStart + 2);
+        uint32_t remainingSize = _body.size() - (variableHeaderStart + 2 + propertiesVarSize);
         if (remainingSize != propertiesSize) {
             return return_code::FAIL;
         }
-        while ((buff != buffEnd) && (index < 17)) {
+        while ((buff != buffEnd) && (index < 4)) {
 
             auto ptype = property::connack_properties[index++];
             //while (buff != buffEnd) {
