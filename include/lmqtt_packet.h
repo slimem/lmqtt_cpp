@@ -82,12 +82,9 @@ class lmqtt_packet {
             
         case packet_type::PUBLISH:
         {
-           _type = packet_type::PUBLISH;
-           // check for field
-           if ((uint8_t)packet_flag::PUBLISH != pflag) {
-               return reason_code::MALFORMED_PACKET;
-           }
-           return reason_code::SUCCESS;
+            _type = packet_type::PUBLISH;
+            
+            return reason_code::SUCCESS;
             break;
         }
         case packet_type::PUBACK:
@@ -537,7 +534,7 @@ public:
         if (remainingSize != propertiesSize) {
             return return_code::FAIL;
         }
-        while ((buff != buffEnd) && (index < 4)) {
+        while ((buff != buffEnd) && (index < 6)) {
 
             auto ptype = property::connack_properties[index++];
             //while (buff != buffEnd) {

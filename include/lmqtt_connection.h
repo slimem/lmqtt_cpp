@@ -130,7 +130,9 @@ private:
 					// more than 4 (mul is multiplied 4 times) it means that the packet is malformed.
 					reason_code rCode = reason_code::SUCCESS;
 					for (uint32_t offset = 0; offset < 4; ++offset) {
-						uint8_t nextByte = read_byte();
+						//uint8_t nextByte = read_byte();
+						uint8_t nextByte;
+						_socket.read_some(asio::buffer(&nextByte, 1));
 						_inPacket._header._packetLen += (nextByte & 0x7f) * mul;
 						if (mul > 0x200000) { // 128 * 128 * 128
 							rCode = reason_code::MALFORMED_PACKET;

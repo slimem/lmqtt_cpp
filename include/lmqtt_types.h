@@ -189,13 +189,13 @@ enum class property_type : uint8_t {
 using properties_map = std::unordered_map<property_type, std::variant<uint32_t, std::string>>;
 
 // i dont know if this belongs here or should be moved in the future
-constexpr std::array<property_type, 4> connack_properties{
+constexpr std::array<property_type, 6> connack_properties{
     property_type::SESSION_EXPIRY_INTERVAL,
     property_type::RECEIVE_MAXIMUM,
     property_type::MAXIMUM_QOS,
     property_type::RETAIN_AVAILABLE,
-    //property_type::MAXIMUM_PACKET_SIZE,
-    //property_type::ASSIGNED_CLIENT_ID,
+    property_type::MAXIMUM_PACKET_SIZE,
+    property_type::ASSIGNED_CLIENT_ID,
     //property_type::TOPIC_ALIAS_MAXIMUM,
     //property_type::REASON_STRING,
     //property_type::USER_PROPERTY,
