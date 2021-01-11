@@ -2,6 +2,7 @@
 
 #include "lmqtt_common.h"
 #include "lmqtt_reason_codes.h"
+#include "lmqtt_utf8_string.h"
 
 namespace lmqtt {
 
@@ -81,13 +82,13 @@ public:
     ) noexcept {
         //decodedString.clear();
 
-        uint16_t strLen = (buffer[0] << 0x8) | buffer[1];
+        uint32_t strLen = (buffer[0] << 0x8) | buffer[1];
 
         // check for non-null characters first
         // TODO: utf8 string check goes here
         // i is uint32 because we can have a 0xFFFF string so
         // 0xFFFF + 2 (data size) will overflow
-        for (uint32_t i = 2; i < strLen + 2U; ++i) {
+        /*for (uint32_t i = 2; i < strLen + 2U; ++i) {
             if (buffer[i] == 0) {
                 return return_code::FAIL;
             }
@@ -96,9 +97,16 @@ public:
                     return return_code::FAIL;
                 }
             }
-        }
+        }*/
 
         decodedString = std::string_view((char*)(buffer + 2), strLen);
+        if (!utf8_utils::is_valid_length(decodedString)) {
+            return return_code::FAIL;
+        }
+
+        if (utf8_utils::is_valid_content(decodedString) != utf8_utils::utf8_str_check::WELL_FORMED) {
+            return return_code::FAIL;
+        }
         offset += 2 + strLen;
 
         return return_code::OK;
