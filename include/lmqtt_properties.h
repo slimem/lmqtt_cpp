@@ -291,6 +291,10 @@ template<>
         return return_code::FAIL;
     }
 
+    if (utf8_utils::is_valid_content(data) != utf8_utils::utf8_str_check::WELL_FORMED) {
+        return return_code::FAIL;
+    }
+
     uint16_t strSize = (uint16_t)data.size();
     buffer[0] = strSize >> 0x8;
     buffer[1] = strSize & 0xFF;
@@ -311,6 +315,14 @@ template<>
     uint32_t str2WritePos = str1Size + 4;
 
     uint32_t buffSizeCompare = str1Size + str2Size + 4;
+
+    if (utf8_utils::is_valid_content(data.first) != utf8_utils::utf8_str_check::WELL_FORMED) {
+        return return_code::FAIL;
+    }
+
+    if (utf8_utils::is_valid_content(data.second) != utf8_utils::utf8_str_check::WELL_FORMED) {
+        return return_code::FAIL;
+    }
 
     if (buffSize < buffSizeCompare) {
         //TODO: add more meningful debug message
