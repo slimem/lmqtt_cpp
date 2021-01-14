@@ -266,7 +266,7 @@ class lmqtt_packet {
     [[nodiscard]] const reason_code decode_publish_packet_body() {
         std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
 
-
+        auto it = _body.begin();
 
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
@@ -534,7 +534,7 @@ public:
         if (remainingSize != propertiesSize) {
             return return_code::FAIL;
         }
-        while ((buff != buffEnd) && (index < 6)) {
+        while ((buff != buffEnd)) {
 
             auto ptype = property::connack_properties[index++];
             //while (buff != buffEnd) {

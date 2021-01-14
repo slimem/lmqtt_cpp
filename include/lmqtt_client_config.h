@@ -315,7 +315,16 @@ public:
 			return (1 + static_cast<uint8_t>(types_utils::get_property_data_type(ptype)));
 		} else {
 			switch (ptype) {
-			case property_type::ASSIGNED_CLIENT_ID: return (1 + 2 + _clientId.size());
+			case property_type::ASSIGNED_CLIENT_ID:
+			{
+				if (_clientId.empty()) {
+					//TODO: assign a client ID
+					//assign_client_id(_clientId);
+					return (1 + 2 + _clientId.size());
+				} else {
+					return 0;
+				}
+			}
 			case property_type::REASON_STRING:		return (1 + 2 + _reasonString.size());
 			case property_type::USER_PROPERTY:
 			{
@@ -422,9 +431,11 @@ public:
 				return return_code::FAIL;
 			}
 
-			buff[0] = static_cast<uint8_t>(ptype);
-			if (write_property_to_buffer<std::string&>(buff + 1, buffSize - 1, _clientId) != return_code::OK) {
-				return return_code::FAIL;
+			if (_assignedClientId) {
+				buff[0] = static_cast<uint8_t>(ptype);
+				if (write_property_to_buffer<std::string&>(buff + 1, buffSize - 1, _clientId) != return_code::OK) {
+					return return_code::FAIL;
+				}
 			}
 			break;
 		}
@@ -574,6 +585,7 @@ private:
 	uint8_t _wildcardSubscription = 1;
 
     std::string _clientId;
+	bool _assignedClientId = false;
 
 	std::string _reasonString{ "Unspecified Error" };
 	uint8_t _qos = 0;
