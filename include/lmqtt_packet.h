@@ -83,7 +83,15 @@ class lmqtt_packet {
         case packet_type::PUBLISH:
         {
             _type = packet_type::PUBLISH;
-            
+
+            uint8_t dub = pflag >> 3;
+            uint8_t qosLevel = (pflag >> 1) & 0x3;
+            uint8_t retain = pflag & 0x1;
+
+            if (qosLevel || dub) {
+                return reason_code::MALFORMED_PACKET;
+            }
+
             return reason_code::SUCCESS;
             break;
         }
@@ -98,6 +106,11 @@ class lmqtt_packet {
         case packet_type::PINGREQ:
         case packet_type::PINGRESP:
         case packet_type::DISCONNECT:
+        {
+            std::cout << "PARSING DISCONNECT PACKET\n";
+            return reason_code::MALFORMED_PACKET;
+            break;
+        }
         case packet_type::AUTH:
             break;
         default:
@@ -267,6 +280,14 @@ class lmqtt_packet {
         std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
 
         auto it = _body.begin();
+
+        // Variable header fields in order: Topic name, packet id, properties
+
+        // Topic Name
+        std::string_view topic;
+        uint32_t offset = 0;
+        utils::decode_utf8_str(&(*it), topic, offset);
+
 
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
