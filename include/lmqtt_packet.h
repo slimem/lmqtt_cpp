@@ -287,8 +287,21 @@ class lmqtt_packet {
         std::string_view topic;
         uint32_t offset = 0;
         utils::decode_utf8_str(&(*it), topic, offset);
+        _clientCfg->_lastTopic = topic;
 
+        it += offset;
 
+        // now compute the variable
+        uint32_t propertyLength = 0;
+        uint8_t varSize = 0; // length of the variable in the buffer 
+        // here, we are pretty comfortable that the buffer size is more than 13
+        if (utils::decode_variable_int(&(*it), propertyLength, varSize, std::distance(it, _body.end())) != return_code::OK) {
+            return reason_code::MALFORMED_PACKET;
+        }
+
+        it += varSize;
+
+        reason_code rcode = decode_properties(std::distance(it, _body.begin()), propertyLength); 
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         std::cout << "[DEBUG] -- FINISHED PARSING PUBLISH PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";

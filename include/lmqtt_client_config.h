@@ -577,6 +577,7 @@ private:
 	uint8_t _requestResponseInformation = 0; // only applicable to CONNACK
 	uint8_t _requestProblemInformation = 0; // applicable to other packets if allowed
 	std::vector<std::pair<const std::string, const std::string>> _userProprieties;
+	std::string _lastTopic;
 	std::string _authMethod;
 	std::vector<uint8_t> _authData;
 	std::string _userName;

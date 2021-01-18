@@ -247,7 +247,7 @@ private:
 						_socket.close();
 					}*/
 					
-					read_fixed_header();
+					//read_fixed_header();
 
 				} else {
 					std::cout << "[" << _id << "] Reading pakcet body Failed: " << ec.message() << "\n";
