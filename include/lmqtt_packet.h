@@ -300,8 +300,8 @@ class lmqtt_packet {
         }
 
         it += varSize;
-
-        reason_code rcode = decode_properties(std::distance(it, _body.begin()), propertyLength); 
+        uint32_t propertyStart = std::distance(_body.begin(), it);
+        reason_code rcode = decode_properties(propertyStart, propertyLength);
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         std::cout << "[DEBUG] -- FINISHED PARSING PUBLISH PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
