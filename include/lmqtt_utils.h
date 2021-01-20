@@ -112,6 +112,23 @@ public:
         return return_code::OK;
     }
 
+    static const return_code decode_utf8_str_fixed(uint8_t* buffer,
+        std::string_view& decodedString,
+        uint32_t length,
+        bool isAlphaNum = false
+    ) noexcept {
+
+        decodedString = std::string_view((char*)(buffer), length);
+        if (!utf8_utils::is_valid_length(decodedString)) {
+            return return_code::FAIL;
+        }
+
+        if (utf8_utils::is_valid_content(decodedString) != utf8_utils::utf8_str_check::WELL_FORMED) {
+            return return_code::FAIL;
+        }
+        return return_code::OK;
+    }
+
     // a more readable method to convert enums
     template <typename T>
     static constexpr typename std::underlying_type<T>::type to_underlying(T e) {

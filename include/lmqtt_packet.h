@@ -303,6 +303,23 @@ class lmqtt_packet {
         uint32_t propertyStart = std::distance(_body.begin(), it);
         reason_code rcode = decode_properties(propertyStart, propertyLength);
 
+        it++;
+
+        std::string_view message;
+        uint32_t messageLength = std::distance(it, _body.end());
+        //uint32_t messageOffset = 0;
+        if (messageLength == 0 || messageLength > 0xFF) {
+            return reason_code::MALFORMED_PACKET;
+        }
+        
+        utils::decode_utf8_str_fixed(&(*it), message, messageLength);
+        //if (message.length() != messageOffset) {
+        //    return reason_code::MALFORMED_PACKET;
+        //}
+
+        std::cout << "[" << _clientCfg->_clientId << "] " << _clientCfg->_lastTopic << " : " << message << std::endl;
+
+
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         std::cout << "[DEBUG] -- FINISHED PARSING PUBLISH PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
         return reason_code::SUCCESS;
