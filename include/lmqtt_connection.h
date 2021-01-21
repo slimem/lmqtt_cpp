@@ -153,8 +153,14 @@ private:
 						return;
 					}
 
+					if (_inPacket._type == packet_type::DISCONNECT) {
+						std::cout << "HERE\n";
+					}
+
 					// resize packet body to hold the rest of the data
 					_inPacket._body.resize(_inPacket._header._packetLen);
+
+
 					
 					read_packet_body();
 
@@ -213,21 +219,29 @@ private:
 							schedule_for_deletion();
 							return;
 						}
-
 						send_packet();
 						break;
 					}
 					case packet_type::PUBLISH:
 					{
+						
 						rcode = _inPacket.decode_publish_packet_body();
 						if (rcode != reason_code::SUCCESS) {
 							_socket.close();
 							schedule_for_deletion();
 							return;
 						}
+						read_fixed_header();
+						break;
+					}
+					case packet_type::DISCONNECT:
+					{
+						std::cout << "In the future, will parse DISCONNECT BODY, byebye\n";
+						break;
 					}
 					}
 
+					
 					//read_packet();
 
 					/*payload::payload_proxy* data = _inPacket._payloads[0].get();

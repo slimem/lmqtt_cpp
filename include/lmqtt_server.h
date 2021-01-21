@@ -45,9 +45,11 @@ public:
 			wait_for_clients();
 
 			_thContext = std::thread([this]() {_context.run(); });
+			_cleanupThread = std::thread([this]() {deleter_job(); });
 
 		} catch (std::exception& e) {
 			std::cerr << "[SERVER] Could Not Start Server. Reason:\n" << e.what() << "\n";
+			stop();
 			return false;
 		}
 
@@ -66,6 +68,13 @@ public:
 		}
 
 		std::cout << "[SERVER] Successfully Stopped LMQTT Server.\n";
+		
+		_exitCleanupThread = true;
+		if (_cleanupThread.joinable()) {
+			_cleanupThread.join();
+		}
+
+		std::cout << "[SERVER] Successfully Stopped connections cleaner\n";
 	}
 
 protected:
@@ -122,17 +131,25 @@ public:
 	// can be used to change how many messages can be processed at a time
 	void update(size_t maxMessages = -1) {
 
-		_deletionQueue.wait();
-		//_messages.wait();
+		_messages.wait();
 
-		if (!_deletionQueue.empty()) {
-			std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
-			//std::cout << "Detected deletion queue not empty\n";
-			auto connection = _deletionQueue.pop_front();
-			connection->shutdown();
-			_activeSessions.find_and_erase(connection);
-			//std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
-			//std::cout << "Deletion from queue took " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << " us\n";
+	}
+
+	void deleter_job() {
+		while (!_exitCleanupThread) {
+			_deletionQueue.wait();
+			//_messages.wait();
+
+			if (!_deletionQueue.empty()) {
+				std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
+				//std::cout << "Detected deletion queue not empty\n";
+				auto connection = _deletionQueue.pop_front();
+				connection->shutdown();
+				_activeSessions.find_and_erase(connection);
+				std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
+				std::cout << "[SERVER] (thread " << std::this_thread::get_id() << ") deleting connection " << connection.get() << std::endl;
+				//std::cout << "Deletion from queue took " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << " us\n";
+			}
 		}
 	}
 
@@ -160,8 +177,11 @@ protected:
 	ts_queue<std::shared_ptr<connection>> _deletionQueue;
 
 	// container for messages to be treated
-	// for now, it is a queue of strings
-	ts_queue<std::string_view> _messages;
+	ts_queue<std::pair<std::weak_ptr<connection>, std::string_view>> _messages;
+
+	// thread for cleanup
+	std::thread _cleanupThread;
+	std::atomic<bool> _exitCleanupThread;
 
 	// timeout
 	std::shared_ptr<lmqtt_timer> _timer;

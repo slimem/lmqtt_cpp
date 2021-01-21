@@ -109,6 +109,15 @@ public:
     static constexpr bool is_valid_length(std::string_view str) {
         return str.size() <= 0xFFFF;
     }
+
+    static constexpr bool has_wildcard(std::string_view str) {
+        for (auto c : str) {
+            if (c == '#') {
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 } // namespace lmqtt

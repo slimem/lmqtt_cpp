@@ -108,7 +108,8 @@ class lmqtt_packet {
         case packet_type::DISCONNECT:
         {
             std::cout << "PARSING DISCONNECT PACKET\n";
-            return reason_code::MALFORMED_PACKET;
+            _type = packet_type::DISCONNECT;
+            return reason_code::SUCCESS;
             break;
         }
         case packet_type::AUTH:
@@ -312,13 +313,15 @@ class lmqtt_packet {
             return reason_code::MALFORMED_PACKET;
         }
         
-        utils::decode_utf8_str_fixed(&(*it), message, messageLength);
-        //if (message.length() != messageOffset) {
-        //    return reason_code::MALFORMED_PACKET;
-        //}
+        if (utils::decode_utf8_str_fixed(&(*it), message, messageLength) != return_code::OK) {
+            return reason_code::MALFORMED_PACKET;
+        }
+        
+        if (utf8_utils::has_wildcard(message)) {
+            return reason_code::MALFORMED_PACKET;
+        }
 
-        std::cout << "[" << _clientCfg->_clientId << "] " << _clientCfg->_lastTopic << " : " << message << std::endl;
-
+        //std::cout << "[" << _clientCfg->_clientId << "] " << _clientCfg->_lastTopic << " : " << message << std::endl;
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         std::cout << "[DEBUG] -- FINISHED PARSING PUBLISH PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
