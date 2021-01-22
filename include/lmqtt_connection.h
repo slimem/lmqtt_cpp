@@ -153,15 +153,9 @@ private:
 						return;
 					}
 
-					if (_inPacket._type == packet_type::DISCONNECT) {
-						std::cout << "HERE\n";
-					}
-
 					// resize packet body to hold the rest of the data
 					_inPacket._body.resize(_inPacket._header._packetLen);
-
-
-					
+	
 					read_packet_body();
 
 				} else {
@@ -236,7 +230,12 @@ private:
 					}
 					case packet_type::DISCONNECT:
 					{
-						std::cout << "In the future, will parse DISCONNECT BODY, byebye\n";
+						rcode = _inPacket.decode_disconnect_packet_body();
+						if (rcode != reason_code::SUCCESS) {
+							_socket.close();
+							schedule_for_deletion();
+							return;
+						}
 						break;
 					}
 					}

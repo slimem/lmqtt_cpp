@@ -107,7 +107,9 @@ class lmqtt_packet {
         case packet_type::PINGRESP:
         case packet_type::DISCONNECT:
         {
-            std::cout << "PARSING DISCONNECT PACKET\n";
+            if ((uint8_t)packet_flag::DISCONNECT != pflag) {
+                return reason_code::MALFORMED_PACKET;
+            }
             _type = packet_type::DISCONNECT;
             return reason_code::SUCCESS;
             break;
@@ -325,6 +327,31 @@ class lmqtt_packet {
 
         std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
         std::cout << "[DEBUG] -- FINISHED PARSING PUBLISH PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
+        return reason_code::SUCCESS;
+    }
+
+    [[nodiscard]] const reason_code decode_disconnect_packet_body() {
+        std::chrono::system_clock::time_point timeStart = std::chrono::system_clock::now();
+
+        auto it = _body.begin();
+
+        if (_body.size() < 1) {
+            return reason_code::MALFORMED_PACKET;
+        }
+
+        reason_code dReasonCode = static_cast<reason_code>(*it);
+
+        if (dReasonCode != reason_code::SUCCESS) {
+            // TODO: Add text
+            std::cout << "[SERVER] - Client disconnected with a reason code " << std::hex << static_cast<uint8_t>(dReasonCode) << std::endl;
+            return reason_code::SUCCESS;
+        }
+
+
+
+
+        std::chrono::system_clock::time_point timeEnd = std::chrono::system_clock::now();
+        std::cout << "[DEBUG] -- FINISHED PARSING DISCONNECT PACKET (TOOK " << std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart).count() << "us)\n";
         return reason_code::SUCCESS;
     }
 
