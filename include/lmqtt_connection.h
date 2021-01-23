@@ -155,7 +155,7 @@ private:
 
 					// resize packet body to hold the rest of the data
 					_inPacket._body.resize(_inPacket._header._packetLen);
-	
+
 					read_packet_body();
 
 				} else {
@@ -225,6 +225,7 @@ private:
 							schedule_for_deletion();
 							return;
 						}
+						_inPacket.reset();
 						read_fixed_header();
 						break;
 					}
@@ -234,6 +235,11 @@ private:
 						if (rcode != reason_code::SUCCESS) {
 							_socket.close();
 							schedule_for_deletion();
+							return;
+						} else {
+							_socket.close();
+							schedule_for_deletion();
+							std::cout << "DISCONNECTING CLIENT: SUCCESS\n";
 							return;
 						}
 						break;
