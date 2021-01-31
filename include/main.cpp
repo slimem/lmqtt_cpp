@@ -1,7 +1,14 @@
 #include <iostream>
 #include "lmqtt.h"
+#include "lmqtt_timer_queue.h"
 
 int main() {
+
+	{
+		lmqtt::timer_queue q;
+	}
+
+
 	lmqtt::lmqtt_server lmqtt_server(1883);
 	if (!lmqtt_server.start()) {
 		std::cout << "Error starting server...\n";

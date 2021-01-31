@@ -31,20 +31,25 @@ public:
 
             std::cout << "Thread " << std::this_thread::get_id() << " will sleep for " << time << " ms\n";
 
-            std::this_thread::sleep_for(time);
+            std::this_thread::sleep_for(std::chrono::milliseconds(time));
         }
     }
 
     timer_queue() {
-
+        _queue.emplace(5000);
+        _queue.emplace(3000);
+        _queue.emplace(6000);
+        _queue.emplace(9000);
     }
 
-    ~timer_queue() = default;
+    ~timer_queue() {
+        _worker.join();
+    }
 
 private:
 
     std::priority_queue<size_t, std::vector<size_t>, comparator> _queue;
-    std::thread _worker;
+    std::thread _worker{ [this]() { run(); } };
     bool _exit = false;
 
 };
